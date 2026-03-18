@@ -7,8 +7,8 @@ class DummyUsers {
   static final List<User> parents = [
     User(
       id: 'parent_001',
-      fullName: 'John Doe',
-      email: 'john.doe@email.com',
+      fullName: 'Danu',
+      email: 'danuparent@saintjohn.com',
       phone: '+62812345678',
       role: 'parent',
       avatarUrl: null,
@@ -28,8 +28,8 @@ class DummyUsers {
   static final List<User> students = [
     User(
       id: 'student_001',
-      fullName: 'Michael Doe',
-      email: 'michael.doe@student.com',
+      fullName: 'Danu',
+      email: 'danustudent@saintjohn.com',
       phone: '+62834567890',
       role: 'student',
       avatarUrl: null,

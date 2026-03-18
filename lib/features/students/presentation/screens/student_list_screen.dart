@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,9 +9,9 @@ import 'package:saintjohn_sms_mobile/core/localization/generated/app_localizatio
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
-import '../../../../shared/data/dummy/dummy_students.dart';
 import '../../../../shared/widgets/inputs/app_text_field.dart';
 import '../../domain/entities/student.dart';
+import '../../providers/students_provider.dart';
 
 /// Student list screen showing all registered students.
 class StudentListScreen extends ConsumerStatefulWidget {
@@ -21,13 +23,7 @@ class StudentListScreen extends ConsumerStatefulWidget {
 
 class _StudentListScreenState extends ConsumerState<StudentListScreen> {
   final TextEditingController _searchController = TextEditingController();
-  List<Student> _filteredStudents = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _filteredStudents = DummyStudents.students;
-  }
+  String _searchQuery = '';
 
   @override
   void dispose() {
@@ -37,23 +33,26 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
 
   void _filterStudents(String query) {
     setState(() {
-      if (query.isEmpty) {
-        _filteredStudents = DummyStudents.students;
-      } else {
-        _filteredStudents = DummyStudents.students
-            .where(
-              (student) =>
-                  student.name.toLowerCase().contains(query.toLowerCase()) ||
-                  student.nisn.contains(query),
-            )
-            .toList();
-      }
+      _searchQuery = query.trim();
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final students = ref.watch(studentsProvider);
+    final filteredStudents = _searchQuery.isEmpty
+        ? students
+        : students
+              .where(
+                (student) =>
+                    student.name.toLowerCase().contains(
+                      _searchQuery.toLowerCase(),
+                    ) ||
+                    student.nik.contains(_searchQuery) ||
+                    student.familyCardNumber.contains(_searchQuery),
+              )
+              .toList();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -79,15 +78,15 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
           ).animate().fadeIn(duration: const Duration(milliseconds: 400)),
           // Student List
           Expanded(
-            child: _filteredStudents.isEmpty
+            child: filteredStudents.isEmpty
                 ? _buildEmptyState(l10n)
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppDimensions.paddingM,
                     ),
-                    itemCount: _filteredStudents.length,
+                    itemCount: filteredStudents.length,
                     itemBuilder: (context, index) {
-                      final student = _filteredStudents[index];
+                      final student = filteredStudents[index];
                       return _buildStudentCard(student, index);
                     },
                   ),
@@ -142,28 +141,11 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
               padding: const EdgeInsets.all(AppDimensions.paddingM),
               child: Row(
                 children: [
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(
-                        AppDimensions.radiusM,
-                      ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        student.name.isNotEmpty
-                            ? student.name[0].toUpperCase()
-                            : 'S',
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
+                  _buildStudentAvatar(
+                    student: student,
+                    size: 50,
+                    fallbackFontSize: 20,
+                    borderRadius: BorderRadius.circular(AppDimensions.radiusM),
                   ),
                   const SizedBox(width: AppDimensions.paddingM),
                   Expanded(
@@ -181,7 +163,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                         ),
                         const SizedBox(height: AppDimensions.paddingXS),
                         Text(
-                          'NISN: ${student.nisn}',
+                          'NIK: ${student.nik}',
                           style: const TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 12,
@@ -190,7 +172,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '${student.grade} - ${student.className}',
+                          '${student.schoolLevel} - ${student.className}',
                           style: const TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 12,
@@ -263,24 +245,11 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
               ),
             ),
             const SizedBox(height: AppDimensions.paddingL),
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Text(
-                  student.name.isNotEmpty ? student.name[0].toUpperCase() : 'S',
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ),
+            _buildStudentAvatar(
+              student: student,
+              size: 80,
+              fallbackFontSize: 32,
+              isCircle: true,
             ),
             const SizedBox(height: AppDimensions.paddingM),
             Text(
@@ -293,18 +262,78 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
               ),
             ),
             const SizedBox(height: AppDimensions.paddingXL),
-            _buildDetailRow('NISN', student.nisn),
-            _buildDetailRow('Gender', student.gender),
-            _buildDetailRow('Grade', student.grade),
-            _buildDetailRow('Class', student.className),
+            _buildDetailRow('Tahun Ajaran', student.academicYear),
+            _buildDetailRow('Nomor Kartu Keluarga', student.familyCardNumber),
+            _buildDetailRow('NIK', student.nik),
+            _buildDetailRow('Nama Lengkap', student.fullName),
             _buildDetailRow(
-              'Birth Date',
+              'Tanggal Lahir',
               '${student.birthDate.day}/${student.birthDate.month}/${student.birthDate.year}',
             ),
-            _buildDetailRow('Address', student.address),
+            _buildDetailRow('Jenis Kelamin', student.gender),
+            _buildDetailRow('Tingkat Sekolah', student.schoolLevel),
+            _buildDetailRow('Kelas', student.className),
+            _buildDetailRow('Sekolah', student.schoolName),
+            _buildDetailRow('Nomor Telp Orang Tua', student.parentPhoneNumber),
+            _buildDetailRow('Metode Pembayaran', student.paymentMethod),
             _buildDetailRow('Status', student.status),
             const SizedBox(height: AppDimensions.paddingL),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStudentAvatar({
+    required Student student,
+    required double size,
+    required double fallbackFontSize,
+    BorderRadius? borderRadius,
+    bool isCircle = false,
+  }) {
+    final avatarPath = student.avatarUrl?.trim();
+    final hasAvatar = avatarPath != null && avatarPath.isNotEmpty;
+
+    return Container(
+      width: size,
+      height: size,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.1),
+        shape: isCircle ? BoxShape.circle : BoxShape.rectangle,
+        borderRadius: isCircle
+            ? null
+            : (borderRadius ?? BorderRadius.circular(AppDimensions.radiusM)),
+      ),
+      child: !hasAvatar
+          ? _buildAvatarFallback(student, fallbackFontSize)
+          : avatarPath.startsWith('assets/')
+          ? Image.asset(
+              avatarPath,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) {
+                return _buildAvatarFallback(student, fallbackFontSize);
+              },
+            )
+          : Image.file(
+              File(avatarPath),
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) {
+                return _buildAvatarFallback(student, fallbackFontSize);
+              },
+            ),
+    );
+  }
+
+  Widget _buildAvatarFallback(Student student, double fallbackFontSize) {
+    return Center(
+      child: Text(
+        student.name.isNotEmpty ? student.name[0].toUpperCase() : 'S',
+        style: TextStyle(
+          fontFamily: 'Poppins',
+          fontSize: fallbackFontSize,
+          fontWeight: FontWeight.bold,
+          color: AppColors.primary,
         ),
       ),
     );
@@ -317,7 +346,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 80,
+            width: 160,
             child: Text(
               label,
               style: const TextStyle(

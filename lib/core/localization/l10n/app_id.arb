@@ -80,7 +80,7 @@
   "validationPhone": "Masukkan nomor telepon yang valid",
 
   "studentsListTitle": "Daftar Siswa",
-  "studentsSearchHint": "Cari berdasarkan nama atau NISN",
+  "studentsSearchHint": "Cari berdasarkan nama, NIK, atau nomor kartu keluarga",
   "studentsEmptyState": "Tidak ada siswa ditemukan",
   "studentsRegistrationTitle": "Pendaftaran Siswa",
   "studentsFullName": "Nama Lengkap",

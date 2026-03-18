@@ -296,7 +296,7 @@
   "@studentsListTitle": {
     "description": "Student list screen title"
   },
-  "studentsSearchHint": "Search by name or NISN",
+  "studentsSearchHint": "Search by name, NIK, or family card number",
   "@studentsSearchHint": {
     "description": "Student search hint"
   },

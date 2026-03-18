@@ -27,6 +27,7 @@ class SettingsScreen extends ConsumerWidget {
             ? DummyUsers.getDefaultParent()
             : DummyUsers.getDefaultStudent());
     final currentLocale = ref.watch(localeProvider);
+    final notificationsEnabled = ref.watch(notificationsEnabledProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -167,8 +168,11 @@ class SettingsScreen extends ConsumerWidget {
                 title: l10n.settingsNotifications,
                 icon: Iconsax.notification,
                 trailing: Switch(
-                  value: true,
-                  onChanged: (value) {},
+                  value: notificationsEnabled,
+                  onChanged: (value) {
+                    ref.read(notificationsEnabledProvider.notifier).state =
+                        value;
+                  },
                   activeTrackColor: AppColors.primary.withValues(alpha: 0.5),
                   thumbColor: WidgetStateProperty.resolveWith((states) {
                     if (states.contains(WidgetState.selected)) {
@@ -178,7 +182,10 @@ class SettingsScreen extends ConsumerWidget {
                   }),
                 ),
                 showArrow: false,
-                onTap: () {},
+                onTap: () {
+                  ref.read(notificationsEnabledProvider.notifier).state =
+                      !notificationsEnabled;
+                },
               ).animate().fadeIn(
                 delay: const Duration(milliseconds: 400),
                 duration: const Duration(milliseconds: 400),

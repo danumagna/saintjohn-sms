@@ -31,10 +31,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   bool _rememberMe = false;
   bool _isLoading = false;
 
+  // Temporary dev autofill credentials.
+  static const String _parentEmail = 'danuparent@saintjohn.com';
+  static const String _studentEmail = 'danustudent@saintjohn.com';
+  static const String _defaultPassword = 'saintjohn1!';
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _applyDevAutofillForIndex(_tabController.index);
+  }
+
+  void _applyDevAutofillForIndex(int index) {
+    final isParent = index == 1;
+    _emailController.text = isParent ? _parentEmail : _studentEmail;
+    _passwordController.text = _defaultPassword;
   }
 
   @override
@@ -53,7 +65,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     // Simulate API call
     await Future.delayed(const Duration(seconds: 1));
 
-    final isParent = _tabController.index == 0;
+    final isParent = _tabController.index == 1;
     final user = isParent
         ? DummyUsers.getDefaultParent()
         : DummyUsers.getDefaultStudent();
@@ -139,6 +151,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                 ),
                 child: TabBar(
                   controller: _tabController,
+                  onTap: _applyDevAutofillForIndex,
                   indicator: BoxDecoration(
                     color: AppColors.primary,
                     borderRadius: BorderRadius.circular(AppDimensions.radiusS),
@@ -159,8 +172,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   ),
                   padding: const EdgeInsets.all(4),
                   tabs: [
-                    Tab(text: l10n.authLoginAsParent),
                     Tab(text: l10n.authLoginAsStudent),
+                    Tab(text: l10n.authLoginAsParent),
                   ],
                 ),
               ).animate().fadeIn(

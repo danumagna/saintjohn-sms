@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:saintjohn_sms_mobile/core/localization/generated/app_localizations.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
@@ -11,60 +12,101 @@ import '../../../../core/constants/app_dimensions.dart';
 class GuideScreen extends StatelessWidget {
   const GuideScreen({super.key});
 
+  static const String _websiteUrl = 'https://stjohn.magnaedu.id/';
+  static const String _youtubeGuideUrl =
+      'https://www.youtube.com/watch?v=K3kztVRbTss&embeds_referring_euri=https%3A%2F%2Fdev.magnaedu.id%2F&source_ve_path=OTY3MTQ';
+  static const String _youtubeFallbackUrl =
+      'https://www.youtube.com/watch?v=K3kztVRbTss';
+
+  Future<void> _launchUrl(BuildContext context, String url) async {
+    final uri = Uri.parse(url);
+
+    // Prefer opening in an external app/browser so users are redirected directly.
+    bool opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+    if (!opened) {
+      opened = await launchUrl(uri, mode: LaunchMode.platformDefault);
+    }
+
+    // Fallback for YouTube links with long tracking params.
+    if (!opened && url == _youtubeGuideUrl) {
+      final fallbackUri = Uri.parse(_youtubeFallbackUrl);
+      opened = await launchUrl(
+        fallbackUri,
+        mode: LaunchMode.externalApplication,
+      );
+    }
+
+    if (opened) {
+      return;
+    }
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Link tidak dapat dibuka.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
 
     final guides = [
-      _GuideItem(
-        icon: Iconsax.login,
-        title: 'Getting Started',
-        description: 'Learn how to log in and navigate the app',
-        steps: [
-          'Open the app and select your user type',
-          'Enter your email and password',
-          'Tap the Login button to access your dashboard',
-        ],
+      _GuideStep(
+        title: 'Membuat Akun',
+        content:
+            'Calon orang tua / wali siswa dapat mengakses link website, lalu registrasi akun dengan cara klik "Daftar".',
+        linkLabel: _websiteUrl,
+        linkUrl: _websiteUrl,
       ),
-      _GuideItem(
-        icon: Iconsax.user_add,
-        title: 'Student Registration',
-        description: 'How to register a new student',
-        steps: [
-          'Go to Students > Registration from the dashboard',
-          'Fill in all required student information',
-          'Tap Register to complete the registration',
-        ],
+      const _GuideStep(
+        title: 'Aktivasi Akun',
+        content:
+            'Setelah calon orang tua / wali siswa berhasil membuat akun, cek email dan akan ada pesan yang masuk untuk aktivasi akun.',
       ),
-      _GuideItem(
-        icon: Iconsax.calendar,
-        title: 'View Schedule',
-        description: 'Check class and exam schedules',
-        steps: [
-          'Navigate to Schedule from the dashboard',
-          'Select the day to view classes',
-          'Tap on a class for more details',
-        ],
+      const _GuideStep(
+        title: 'Masuk Akun',
+        content:
+            'Calon orang tua / wali siswa masuk ke akun dengan cara klik "Masuk Akun Orang Tua" di halaman beranda website menggunakan email dan password yang sudah dibuat.',
       ),
-      _GuideItem(
-        icon: Iconsax.chart,
-        title: 'Check Progress',
-        description: 'Monitor academic progress and attendance',
-        steps: [
-          'Go to Reports from the dashboard',
-          'Select the type of report you want to view',
-          'Review the detailed information',
-        ],
+      const _GuideStep(
+        title: 'Pembayaran Pendaftaran',
+        content:
+            'Isi formulir registrasi calon siswa baru dan lakukan pembayaran pendaftaran melalui nomor virtual account ataupun transfer bank yang tersedia. Jika menggunakan nomor virtual account maka orang tua harus menunggu admin untuk input nomor virtual account.',
       ),
-      _GuideItem(
-        icon: Iconsax.setting_2,
-        title: 'Settings',
-        description: 'Customize your app experience',
-        steps: [
-          'Tap Settings in the bottom navigation',
-          'Update your profile, language, or notifications',
-          'Changes are saved automatically',
-        ],
+      const _GuideStep(
+        title: 'Isi Formulir Pendaftaran Siswa',
+        content:
+            'Setelah pembayaran pendaftaran lunas, maka akan memunculkan data profil, informasi tes, status pembayaran uang pangkal. Klik data profil dan isi data wajib pada formulir lalu upload Surat Pernyataan.',
+      ),
+      const _GuideStep(
+        title: 'Tes Seleksi',
+        content:
+            'Pada bagian beranda orang tua, informasi tes digunakan orang tua/calon siswa untuk mengetahui jadwal tes dan terdapat beberapa status. Jika status menunggu maka belum terdapat jadwal dan jika status diumumkan maka sudah terdapat jadwal tes.',
+      ),
+      const _GuideStep(
+        title: 'Hasil Tes',
+        content:
+            'Setelah tahap tes dilakukan, maka status informasi tes berubah. Jika status lulus maka lanjutkan tahap berikutnya. Jika status tidak lulus maka lakukan registrasi ulang dan jika negosiasi maka orang tua calon siswa melakukan negosiasi dengan bagian registrasi.',
+      ),
+      const _GuideStep(
+        title: 'Pembayaran Uang Gedung',
+        content:
+            'Jika calon siswa lulus, maka klik Status Pembayaran Uang Pangkal dan isi metode pembayaran yang diinginkan. Jika menggunakan nomor virtual account maka orang tua harus menunggu admin untuk input nomor virtual account.',
+      ),
+      const _GuideStep(
+        title: 'Penerimaan Sebagai Siswa',
+        content:
+            'Setelah lunas pembayaran formulir, data profil lengkap, calon siswa lulus tes dan pembayaran uang pangkal lunas, maka sekolah akan memutuskan calon siswa menjadi siswa resmi Saint John.',
+      ),
+      const _GuideStep(
+        title: 'Lengkapi Data Profil',
+        content:
+            'Calon siswa yang sudah menjadi siswa, akan berubah tampilan pada beranda orang tua dan terdapat profil yang dapat dilengkapi, serta dashboard untuk melihat aktivitas sekolah siswa.',
       ),
     ];
 
@@ -78,18 +120,36 @@ class GuideScreen extends StatelessWidget {
           onPressed: () => context.pop(),
         ),
       ),
-      body: ListView.builder(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppDimensions.paddingM),
-        itemCount: guides.length,
-        itemBuilder: (context, index) {
-          final guide = guides[index];
-          return _buildGuideCard(guide, index);
-        },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ...guides.asMap().entries.map((entry) {
+              return _buildGuideCard(
+                context: context,
+                number: entry.key + 1,
+                step: entry.value,
+                index: entry.key,
+              );
+            }),
+            const SizedBox(height: AppDimensions.paddingL),
+            _buildYoutubeCard(context).animate().fadeIn(
+              delay: const Duration(milliseconds: 500),
+              duration: const Duration(milliseconds: 400),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildGuideCard(_GuideItem guide, int index) {
+  Widget _buildGuideCard({
+    required BuildContext context,
+    required int number,
+    required _GuideStep step,
+    required int index,
+  }) {
     return Card(
           elevation: AppDimensions.elevationS,
           margin: const EdgeInsets.only(bottom: AppDimensions.paddingM),
@@ -106,15 +166,25 @@ class GuideScreen extends StatelessWidget {
                 bottom: AppDimensions.paddingM,
               ),
               leading: Container(
-                padding: const EdgeInsets.all(AppDimensions.paddingS),
+                width: 34,
+                height: 34,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppDimensions.radiusS),
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(AppDimensions.radiusM),
                 ),
-                child: Icon(guide.icon, color: AppColors.primary),
+                alignment: Alignment.center,
+                child: Text(
+                  '$number',
+                  style: const TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textOnPrimary,
+                  ),
+                ),
               ),
               title: Text(
-                guide.title,
+                step.title,
                 style: const TextStyle(
                   fontFamily: 'Poppins',
                   fontSize: 15,
@@ -122,63 +192,51 @@ class GuideScreen extends StatelessWidget {
                   color: AppColors.textPrimary,
                 ),
               ),
-              subtitle: Padding(
-                padding: const EdgeInsets.only(top: AppDimensions.paddingXS),
-                child: Text(
-                  guide.description,
+              children: [
+                Text(
+                  step.content,
                   style: const TextStyle(
                     fontFamily: 'Inter',
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                    height: 1.45,
+                    color: AppColors.textPrimary,
                   ),
                 ),
-              ),
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: guide.steps.asMap().entries.map((entry) {
-                    return Padding(
-                      padding: const EdgeInsets.only(
-                        bottom: AppDimensions.paddingS,
+                if (step.linkUrl != null && step.linkLabel != null) ...[
+                  const SizedBox(height: AppDimensions.paddingM),
+                  InkWell(
+                    onTap: () => _launchUrl(context, step.linkUrl!),
+                    borderRadius: BorderRadius.circular(AppDimensions.radiusS),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppDimensions.paddingXS,
                       ),
                       child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Container(
-                            width: 24,
-                            height: 24,
-                            decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Center(
-                              child: Text(
-                                '${entry.key + 1}',
-                                style: const TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.textOnPrimary,
-                                ),
-                              ),
-                            ),
+                          const Icon(
+                            Iconsax.link_2,
+                            size: 16,
+                            color: AppColors.primary,
                           ),
-                          const SizedBox(width: AppDimensions.paddingM),
-                          Expanded(
+                          const SizedBox(width: AppDimensions.paddingS),
+                          Flexible(
                             child: Text(
-                              entry.value,
+                              step.linkLabel!,
                               style: const TextStyle(
                                 fontFamily: 'Inter',
                                 fontSize: 13,
-                                color: AppColors.textPrimary,
+                                color: AppColors.primary,
+                                decoration: TextDecoration.underline,
+                                decorationColor: AppColors.primary,
                               ),
                             ),
                           ),
                         ],
                       ),
-                    );
-                  }).toList(),
-                ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -190,18 +248,82 @@ class GuideScreen extends StatelessWidget {
         )
         .slideY(begin: 0.1, end: 0);
   }
+
+  Widget _buildYoutubeCard(BuildContext context) {
+    return Card(
+      elevation: AppDimensions.elevationS,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppDimensions.radiusL),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppDimensions.paddingM),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Link YouTube untuk panduan',
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: AppDimensions.paddingXS),
+            const Text(
+              'Cara daftar di Sekolah Kristen Saint John',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: AppDimensions.paddingS),
+            InkWell(
+              onTap: () => _launchUrl(context, _youtubeGuideUrl),
+              borderRadius: BorderRadius.circular(AppDimensions.radiusS),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(
+                  vertical: AppDimensions.paddingXS,
+                ),
+                child: Text(
+                  _youtubeGuideUrl,
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 13,
+                    color: AppColors.primary,
+                    decoration: TextDecoration.underline,
+                    decorationColor: AppColors.primary,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppDimensions.paddingS),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () => _launchUrl(context, _youtubeGuideUrl),
+                icon: const Icon(Iconsax.play, size: 18),
+                label: const Text('Buka video panduan'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
-class _GuideItem {
-  final IconData icon;
+class _GuideStep {
   final String title;
-  final String description;
-  final List<String> steps;
+  final String content;
+  final String? linkLabel;
+  final String? linkUrl;
 
-  const _GuideItem({
-    required this.icon,
+  const _GuideStep({
     required this.title,
-    required this.description,
-    required this.steps,
+    required this.content,
+    this.linkLabel,
+    this.linkUrl,
   });
 }

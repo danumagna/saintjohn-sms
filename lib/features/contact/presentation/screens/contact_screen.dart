@@ -93,8 +93,10 @@ class _ContactScreenState extends State<ContactScreen> {
             _buildContactCard(
               icon: Iconsax.location,
               title: l10n.contactAddress,
-              value: 'Jl. Pendidikan No. 123\nJakarta Selatan, 12345',
-              onTap: () => _launchUrl('https://maps.google.com/?q=Jakarta'),
+              value:
+                  'Jl. Bungur Besar Raya No. 82a - 84, RT.1/RW.7, Gn. Sahari Sel., Kec. Kemayoran, Kota Jakarta Pusat, Daerah Khusus Ibukota Jakarta 10610',
+              onTap: () =>
+                  _launchUrl('https://maps.app.goo.gl/BdVbr4U4ewLDLMz1A'),
             ),
             _buildContactCard(
               icon: Iconsax.call,
@@ -111,7 +113,7 @@ class _ContactScreenState extends State<ContactScreen> {
             _buildContactCard(
               icon: Iconsax.clock,
               title: l10n.contactOfficeHours,
-              value: 'Monday - Friday\n08:00 - 16:00 WIB',
+              value: 'Monday - Friday\n06:30 - 18:00 WIB',
               onTap: null,
             ),
             const SizedBox(height: AppDimensions.paddingXL),

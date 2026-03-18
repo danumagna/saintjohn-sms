@@ -20,3 +20,6 @@ final localeProvider = StateProvider<String>((ref) => 'en');
 
 /// Theme mode provider (for future dark mode support).
 final themeModeProvider = StateProvider<bool>((ref) => false);
+
+/// Notification toggle provider for settings screen.
+final notificationsEnabledProvider = StateProvider<bool>((ref) => true);

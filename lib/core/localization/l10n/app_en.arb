@@ -1,0 +1,553 @@
+{
+  "@@locale": "en",
+  "@@last_modified": "2026-03-18",
+  
+  "appName": "Saint John SMS",
+  "@appName": {
+    "description": "Application name"
+  },
+  "appFullName": "Saint John School Management System",
+  "@appFullName": {
+    "description": "Full application name"
+  },
+
+  "authLoginTitle": "Login",
+  "@authLoginTitle": {
+    "description": "Login screen title"
+  },
+  "authLoginAsParent": "Login as Parent",
+  "@authLoginAsParent": {
+    "description": "Login as parent tab"
+  },
+  "authLoginAsStudent": "Login as Student",
+  "@authLoginAsStudent": {
+    "description": "Login as student tab"
+  },
+  "authEmailHint": "Enter your email",
+  "@authEmailHint": {
+    "description": "Email input hint"
+  },
+  "authEmailLabel": "Email",
+  "@authEmailLabel": {
+    "description": "Email input label"
+  },
+  "authPasswordHint": "Enter your password",
+  "@authPasswordHint": {
+    "description": "Password input hint"
+  },
+  "authPasswordLabel": "Password",
+  "@authPasswordLabel": {
+    "description": "Password input label"
+  },
+  "authRememberMe": "Remember me",
+  "@authRememberMe": {
+    "description": "Remember me checkbox"
+  },
+  "authForgotPassword": "Forgot Password?",
+  "@authForgotPassword": {
+    "description": "Forgot password link"
+  },
+  "authLogin": "Login",
+  "@authLogin": {
+    "description": "Login button"
+  },
+  "authNoAccount": "Don't have an account?",
+  "@authNoAccount": {
+    "description": "No account text"
+  },
+  "authSignUp": "Sign Up",
+  "@authSignUp": {
+    "description": "Sign up link/button"
+  },
+  "authSignUpTitle": "Create Account",
+  "@authSignUpTitle": {
+    "description": "Sign up screen title"
+  },
+  "authFullNameHint": "Enter your full name",
+  "@authFullNameHint": {
+    "description": "Full name input hint"
+  },
+  "authFullNameLabel": "Full Name",
+  "@authFullNameLabel": {
+    "description": "Full name input label"
+  },
+  "authPhoneHint": "Enter your phone number",
+  "@authPhoneHint": {
+    "description": "Phone input hint"
+  },
+  "authPhoneLabel": "Phone Number",
+  "@authPhoneLabel": {
+    "description": "Phone input label"
+  },
+  "authConfirmPasswordHint": "Confirm your password",
+  "@authConfirmPasswordHint": {
+    "description": "Confirm password input hint"
+  },
+  "authConfirmPasswordLabel": "Confirm Password",
+  "@authConfirmPasswordLabel": {
+    "description": "Confirm password input label"
+  },
+  "authAgreeTerms": "I agree to the Terms & Conditions",
+  "@authAgreeTerms": {
+    "description": "Terms agreement checkbox"
+  },
+  "authHaveAccount": "Already have an account?",
+  "@authHaveAccount": {
+    "description": "Have account text"
+  },
+  "authForgotPasswordTitle": "Forgot Password",
+  "@authForgotPasswordTitle": {
+    "description": "Forgot password screen title"
+  },
+  "authForgotPasswordDesc": "Enter your email address and we'll send you a link to reset your password.",
+  "@authForgotPasswordDesc": {
+    "description": "Forgot password description"
+  },
+  "authSendResetLink": "Send Reset Link",
+  "@authSendResetLink": {
+    "description": "Send reset link button"
+  },
+  "authBackToLogin": "Back to Login",
+  "@authBackToLogin": {
+    "description": "Back to login link"
+  },
+
+  "dashboardWelcome": "Welcome, {name}",
+  "@dashboardWelcome": {
+    "description": "Welcome message with name",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "John"
+      }
+    }
+  },
+  "dashboardTitle": "Dashboard",
+  "@dashboardTitle": {
+    "description": "Dashboard screen title"
+  },
+
+  "menuStudents": "Students",
+  "@menuStudents": {
+    "description": "Students menu"
+  },
+  "menuStudentRegistration": "Registration",
+  "@menuStudentRegistration": {
+    "description": "Student registration submenu"
+  },
+  "menuStudentList": "Student List",
+  "@menuStudentList": {
+    "description": "Student list submenu"
+  },
+  "menuGuide": "Guide",
+  "@menuGuide": {
+    "description": "Guide menu"
+  },
+  "menuContactUs": "Contact Us",
+  "@menuContactUs": {
+    "description": "Contact us menu"
+  },
+  "menuAssessment": "Assessment",
+  "@menuAssessment": {
+    "description": "Assessment menu"
+  },
+  "menuSchedule": "Class Schedule",
+  "@menuSchedule": {
+    "description": "Class schedule menu"
+  },
+  "menuAcademicCalendar": "Academic Calendar",
+  "@menuAcademicCalendar": {
+    "description": "Academic calendar menu"
+  },
+  "menuReports": "Reports",
+  "@menuReports": {
+    "description": "Reports menu"
+  },
+  "menuAttendance": "Student Attendance",
+  "@menuAttendance": {
+    "description": "Attendance report"
+  },
+  "menuExamSchedule": "Today's Exam Schedule",
+  "@menuExamSchedule": {
+    "description": "Exam schedule menu"
+  },
+  "menuSessionAttendance": "Session Attendance Today",
+  "@menuSessionAttendance": {
+    "description": "Session attendance menu"
+  },
+  "menuStudentProgress": "Student Progress",
+  "@menuStudentProgress": {
+    "description": "Student progress menu"
+  },
+
+  "settingsTitle": "Settings",
+  "@settingsTitle": {
+    "description": "Settings screen title"
+  },
+  "settingsMyProfile": "My Profile",
+  "@settingsMyProfile": {
+    "description": "My profile menu"
+  },
+  "settingsLanguage": "Language",
+  "@settingsLanguage": {
+    "description": "Language settings"
+  },
+  "settingsNotifications": "Notifications",
+  "@settingsNotifications": {
+    "description": "Notification settings"
+  },
+  "settingsAbout": "About App",
+  "@settingsAbout": {
+    "description": "About app menu"
+  },
+  "settingsLogout": "Log Out",
+  "@settingsLogout": {
+    "description": "Logout button"
+  },
+  "settingsLogoutConfirm": "Are you sure you want to log out?",
+  "@settingsLogoutConfirm": {
+    "description": "Logout confirmation message"
+  },
+
+  "notificationsTitle": "Notifications",
+  "@notificationsTitle": {
+    "description": "Notifications screen title"
+  },
+  "notificationsEmpty": "No notifications yet",
+  "@notificationsEmpty": {
+    "description": "Empty notifications message"
+  },
+  "notificationsMarkAllRead": "Mark all as read",
+  "@notificationsMarkAllRead": {
+    "description": "Mark all as read button"
+  },
+
+  "commonSubmit": "Submit",
+  "@commonSubmit": {
+    "description": "Submit button"
+  },
+  "commonCancel": "Cancel",
+  "@commonCancel": {
+    "description": "Cancel button"
+  },
+  "commonSave": "Save",
+  "@commonSave": {
+    "description": "Save button"
+  },
+  "commonLoading": "Loading...",
+  "@commonLoading": {
+    "description": "Loading text"
+  },
+  "commonError": "Something went wrong",
+  "@commonError": {
+    "description": "Generic error message"
+  },
+  "commonRetry": "Retry",
+  "@commonRetry": {
+    "description": "Retry button"
+  },
+  "commonYes": "Yes",
+  "@commonYes": {
+    "description": "Yes button"
+  },
+  "commonNo": "No",
+  "@commonNo": {
+    "description": "No button"
+  },
+  "commonOk": "OK",
+  "@commonOk": {
+    "description": "OK button"
+  },
+  "commonClose": "Close",
+  "@commonClose": {
+    "description": "Close button"
+  },
+  "commonSearch": "Search",
+  "@commonSearch": {
+    "description": "Search"
+  },
+  "commonNoData": "No data available",
+  "@commonNoData": {
+    "description": "No data message"
+  },
+
+  "validationRequired": "This field is required",
+  "@validationRequired": {
+    "description": "Required field validation"
+  },
+  "validationEmail": "Please enter a valid email",
+  "@validationEmail": {
+    "description": "Email validation"
+  },
+  "validationPasswordMin": "Password must be at least 8 characters",
+  "@validationPasswordMin": {
+    "description": "Password minimum length validation"
+  },
+  "validationPasswordMatch": "Passwords do not match",
+  "@validationPasswordMatch": {
+    "description": "Password match validation"
+  },
+  "validationPhone": "Please enter a valid phone number",
+  "@validationPhone": {
+    "description": "Phone validation"
+  },
+
+  "studentsListTitle": "Student List",
+  "@studentsListTitle": {
+    "description": "Student list screen title"
+  },
+  "studentsSearchHint": "Search by name or NISN",
+  "@studentsSearchHint": {
+    "description": "Student search hint"
+  },
+  "studentsEmptyState": "No students found",
+  "@studentsEmptyState": {
+    "description": "Empty students message"
+  },
+  "studentsRegistrationTitle": "Student Registration",
+  "@studentsRegistrationTitle": {
+    "description": "Student registration screen title"
+  },
+  "studentsFullName": "Full Name",
+  "@studentsFullName": {
+    "description": "Student full name label"
+  },
+  "studentsFullNameHint": "Enter student full name",
+  "@studentsFullNameHint": {
+    "description": "Student full name hint"
+  },
+  "studentsNISN": "NISN",
+  "@studentsNISN": {
+    "description": "NISN label"
+  },
+  "studentsNISNHint": "Enter NISN",
+  "@studentsNISNHint": {
+    "description": "NISN hint"
+  },
+  "studentsGender": "Gender",
+  "@studentsGender": {
+    "description": "Gender label"
+  },
+  "studentsBirthDate": "Birth Date",
+  "@studentsBirthDate": {
+    "description": "Birth date label"
+  },
+  "studentsBirthDateHint": "Select birth date",
+  "@studentsBirthDateHint": {
+    "description": "Birth date hint"
+  },
+  "studentsGrade": "Grade",
+  "@studentsGrade": {
+    "description": "Grade label"
+  },
+  "studentsClass": "Class",
+  "@studentsClass": {
+    "description": "Class label"
+  },
+  "studentsAddress": "Address",
+  "@studentsAddress": {
+    "description": "Address label"
+  },
+  "studentsAddressHint": "Enter student address",
+  "@studentsAddressHint": {
+    "description": "Address hint"
+  },
+  "studentsRegisterButton": "Register Student",
+  "@studentsRegisterButton": {
+    "description": "Register button"
+  },
+
+  "guideTitle": "Guide",
+  "@guideTitle": {
+    "description": "Guide screen title"
+  },
+
+  "contactTitle": "Contact Us",
+  "@contactTitle": {
+    "description": "Contact screen title"
+  },
+  "contactReachUs": "Reach Us",
+  "@contactReachUs": {
+    "description": "Reach us section title"
+  },
+  "contactAddress": "Address",
+  "@contactAddress": {
+    "description": "Address label"
+  },
+  "contactPhone": "Phone",
+  "@contactPhone": {
+    "description": "Phone label"
+  },
+  "contactEmail": "Email",
+  "@contactEmail": {
+    "description": "Email label"
+  },
+  "contactOfficeHours": "Office Hours",
+  "@contactOfficeHours": {
+    "description": "Office hours label"
+  },
+  "contactSendMessage": "Send us a Message",
+  "@contactSendMessage": {
+    "description": "Send message section title"
+  },
+  "contactSubject": "Subject",
+  "@contactSubject": {
+    "description": "Subject label"
+  },
+  "contactSubjectHint": "Enter message subject",
+  "@contactSubjectHint": {
+    "description": "Subject hint"
+  },
+  "contactMessage": "Message",
+  "@contactMessage": {
+    "description": "Message label"
+  },
+  "contactMessageHint": "Enter your message",
+  "@contactMessageHint": {
+    "description": "Message hint"
+  },
+  "contactSendButton": "Send Message",
+  "@contactSendButton": {
+    "description": "Send button"
+  },
+
+  "assessmentTitle": "Assessment",
+  "@assessmentTitle": {
+    "description": "Assessment screen title"
+  },
+  "assessmentAll": "All",
+  "@assessmentAll": {
+    "description": "All tab"
+  },
+  "assessmentExams": "Exams",
+  "@assessmentExams": {
+    "description": "Exams tab"
+  },
+  "assessmentAssignments": "Assignments",
+  "@assessmentAssignments": {
+    "description": "Assignments tab"
+  },
+  "assessmentAverage": "Average",
+  "@assessmentAverage": {
+    "description": "Average score label"
+  },
+  "assessmentTotal": "Total",
+  "@assessmentTotal": {
+    "description": "Total assessments label"
+  },
+  "assessmentRank": "Rank",
+  "@assessmentRank": {
+    "description": "Rank label"
+  },
+
+  "scheduleTitle": "Class Schedule",
+  "@scheduleTitle": {
+    "description": "Schedule screen title"
+  },
+
+  "calendarTitle": "Academic Calendar",
+  "@calendarTitle": {
+    "description": "Calendar screen title"
+  },
+  "calendarNoEvents": "No events for this day",
+  "@calendarNoEvents": {
+    "description": "No events message"
+  },
+
+  "reportAttendance": "Attendance Report",
+  "@reportAttendance": {
+    "description": "Attendance report title"
+  },
+  "reportAttendanceRate": "Attendance Rate",
+  "@reportAttendanceRate": {
+    "description": "Attendance rate label"
+  },
+  "reportPresent": "Present",
+  "@reportPresent": {
+    "description": "Present status"
+  },
+  "reportAbsent": "Absent",
+  "@reportAbsent": {
+    "description": "Absent status"
+  },
+  "reportLate": "Late",
+  "@reportLate": {
+    "description": "Late status"
+  },
+  "reportExcused": "Excused",
+  "@reportExcused": {
+    "description": "Excused status"
+  },
+  "reportExamSchedule": "Exam Schedule",
+  "@reportExamSchedule": {
+    "description": "Exam schedule title"
+  },
+  "reportTodayExams": "Today's Exams",
+  "@reportTodayExams": {
+    "description": "Today's exams label"
+  },
+  "reportUpcomingExams": "Upcoming Exams",
+  "@reportUpcomingExams": {
+    "description": "Upcoming exams label"
+  },
+  "reportNoExams": "No exams scheduled",
+  "@reportNoExams": {
+    "description": "No exams message"
+  },
+  "reportSessionAttendance": "Session Attendance",
+  "@reportSessionAttendance": {
+    "description": "Session attendance title"
+  },
+  "reportTodayAttendance": "Today's Attendance",
+  "@reportTodayAttendance": {
+    "description": "Today's attendance label"
+  },
+  "reportOngoing": "Ongoing",
+  "@reportOngoing": {
+    "description": "Ongoing status"
+  },
+  "reportUpcoming": "Upcoming",
+  "@reportUpcoming": {
+    "description": "Upcoming status"
+  },
+  "reportProgress": "Student Progress",
+  "@reportProgress": {
+    "description": "Progress report title"
+  },
+  "reportOverall": "Overall",
+  "@reportOverall": {
+    "description": "Overall label"
+  },
+  "reportAcademicProgress": "Academic Progress",
+  "@reportAcademicProgress": {
+    "description": "Academic progress label"
+  },
+  "reportSubjects": "Subjects",
+  "@reportSubjects": {
+    "description": "Subjects label"
+  },
+  "reportAvgGrade": "Avg Grade",
+  "@reportAvgGrade": {
+    "description": "Average grade label"
+  },
+  "reportSubjectProgress": "Subject Progress",
+  "@reportSubjectProgress": {
+    "description": "Subject progress section title"
+  },
+  "reportTopics": "topics",
+  "@reportTopics": {
+    "description": "Topics label"
+  },
+  "reportAchievements": "Achievements",
+  "@reportAchievements": {
+    "description": "Achievements section title"
+  },
+  "reportTopPerformer": "Top Performer",
+  "@reportTopPerformer": {
+    "description": "Top performer achievement"
+  },
+  "reportMostImproved": "Most Improved",
+  "@reportMostImproved": {
+    "description": "Most improved achievement"
+  }
+}

@@ -54,6 +54,12 @@ class AppLocalizationsId extends AppLocalizations {
   String get authSignUpTitle => 'Buat Akun';
 
   @override
+  String get authSignUpAsParent => 'Daftar sebagai Orang Tua';
+
+  @override
+  String get authSignUpAsStudent => 'Daftar sebagai Siswa';
+
+  @override
   String get authFullNameHint => 'Masukkan nama lengkap Anda';
 
   @override

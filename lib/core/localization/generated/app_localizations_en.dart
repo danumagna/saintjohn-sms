@@ -54,6 +54,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authSignUpTitle => 'Create Account';
 
   @override
+  String get authSignUpAsParent => 'Sign up as Parent';
+
+  @override
+  String get authSignUpAsStudent => 'Sign up as Student';
+
+  @override
   String get authFullNameHint => 'Enter your full name';
 
   @override

@@ -188,6 +188,18 @@ abstract class AppLocalizations {
   /// **'Create Account'**
   String get authSignUpTitle;
 
+  /// Sign up as parent option
+  ///
+  /// In en, this message translates to:
+  /// **'Sign up as Parent'**
+  String get authSignUpAsParent;
+
+  /// Sign up as student option
+  ///
+  /// In en, this message translates to:
+  /// **'Sign up as Student'**
+  String get authSignUpAsStudent;
+
   /// Full name input hint
   ///
   /// In en, this message translates to:

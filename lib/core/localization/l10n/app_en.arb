@@ -63,6 +63,14 @@
   "@authSignUpTitle": {
     "description": "Sign up screen title"
   },
+  "authSignUpAsParent": "Sign up as Parent",
+  "@authSignUpAsParent": {
+    "description": "Sign up as parent option"
+  },
+  "authSignUpAsStudent": "Sign up as Student",
+  "@authSignUpAsStudent": {
+    "description": "Sign up as student option"
+  },
   "authFullNameHint": "Enter your full name",
   "@authFullNameHint": {
     "description": "Full name input hint"

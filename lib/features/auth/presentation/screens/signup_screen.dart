@@ -27,7 +27,7 @@ class _SignupScreenState extends State<SignupScreen> {
   final _confirmPasswordController = TextEditingController();
   bool _agreeToTerms = false;
   bool _isLoading = false;
-  String _userType = 'parent';
+  String _userType = 'student';
 
   @override
   void dispose() {
@@ -116,16 +116,15 @@ class _SignupScreenState extends State<SignupScreen> {
                     children: [
                       Expanded(
                         child: _buildUserTypeOption(
-                          label: l10n.authLoginAsParent,
-                          value: 'parent',
-                          icon: Iconsax.people,
+                          label: l10n.authSignUpAsStudent,
+                          value: 'student',
                         ),
                       ),
+
                       Expanded(
                         child: _buildUserTypeOption(
-                          label: l10n.authLoginAsStudent,
-                          value: 'student',
-                          icon: Iconsax.user,
+                          label: l10n.authSignUpAsParent,
+                          value: 'parent',
                         ),
                       ),
                     ],
@@ -329,11 +328,7 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-  Widget _buildUserTypeOption({
-    required String label,
-    required String value,
-    required IconData icon,
-  }) {
+  Widget _buildUserTypeOption({required String label, required String value}) {
     final isSelected = _userType == value;
 
     return GestureDetector(
@@ -348,23 +343,21 @@ class _SignupScreenState extends State<SignupScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: 20,
-              color: isSelected
-                  ? AppColors.textOnPrimary
-                  : AppColors.textSecondary,
-            ),
             const SizedBox(width: AppDimensions.paddingS),
-            Text(
-              label,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: isSelected
-                    ? AppColors.textOnPrimary
-                    : AppColors.textSecondary,
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: isSelected
+                        ? AppColors.textOnPrimary
+                        : AppColors.textSecondary,
+                  ),
+                ),
               ),
             ),
           ],

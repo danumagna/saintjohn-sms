@@ -172,8 +172,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   ),
                   padding: const EdgeInsets.all(4),
                   tabs: [
-                    Tab(text: l10n.authLoginAsStudent),
-                    Tab(text: l10n.authLoginAsParent),
+                    Tab(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(l10n.authLoginAsStudent),
+                      ),
+                    ),
+                    Tab(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(l10n.authLoginAsParent),
+                      ),
+                    ),
                   ],
                 ),
               ).animate().fadeIn(

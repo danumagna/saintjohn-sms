@@ -18,6 +18,8 @@
   "authNoAccount": "Belum punya akun?",
   "authSignUp": "Daftar",
   "authSignUpTitle": "Buat Akun",
+  "authSignUpAsParent": "Daftar sebagai Orang Tua",
+  "authSignUpAsStudent": "Daftar sebagai Siswa",
   "authFullNameHint": "Masukkan nama lengkap Anda",
   "authFullNameLabel": "Nama Lengkap",
   "authPhoneHint": "Masukkan nomor telepon Anda",

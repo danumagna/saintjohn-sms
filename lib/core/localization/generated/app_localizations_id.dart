@@ -105,6 +105,30 @@ class AppLocalizationsId extends AppLocalizations {
   String get dashboardTitle => 'Beranda';
 
   @override
+  String get dashboardAverageScore => 'Nilai Rata-rata';
+
+  @override
+  String get dashboardClassesToday => 'Kelas Hari Ini';
+
+  @override
+  String get dashboardAttendanceRate => 'Tingkat Kehadiran';
+
+  @override
+  String get dashboardExamsToday => 'Ujian Hari Ini';
+
+  @override
+  String get dashboardSessionsAttended => 'Sesi Dihadiri';
+
+  @override
+  String get dashboardOverallProgress => 'Progress Keseluruhan';
+
+  @override
+  String get dashboardSummarySectionTitle => 'Ringkasan Hari Ini';
+
+  @override
+  String get dashboardMainMenuSectionTitle => 'Menu Utama';
+
+  @override
   String get menuStudents => 'Siswa';
 
   @override

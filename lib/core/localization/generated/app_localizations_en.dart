@@ -105,6 +105,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dashboardTitle => 'Dashboard';
 
   @override
+  String get dashboardAverageScore => 'Avg. Score';
+
+  @override
+  String get dashboardClassesToday => 'Classes Today';
+
+  @override
+  String get dashboardAttendanceRate => 'Attendance Rate';
+
+  @override
+  String get dashboardExamsToday => 'Exams Today';
+
+  @override
+  String get dashboardSessionsAttended => 'Sessions Attended';
+
+  @override
+  String get dashboardOverallProgress => 'Overall Progress';
+
+  @override
+  String get dashboardSummarySectionTitle => 'Today Summary';
+
+  @override
+  String get dashboardMainMenuSectionTitle => 'Main Menu';
+
+  @override
   String get menuStudents => 'Students';
 
   @override

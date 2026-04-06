@@ -134,6 +134,38 @@
   "@dashboardTitle": {
     "description": "Dashboard screen title"
   },
+  "dashboardAverageScore": "Avg. Score",
+  "@dashboardAverageScore": {
+    "description": "Average score label in dashboard summary"
+  },
+  "dashboardClassesToday": "Classes Today",
+  "@dashboardClassesToday": {
+    "description": "Classes today label in dashboard summary"
+  },
+  "dashboardAttendanceRate": "Attendance Rate",
+  "@dashboardAttendanceRate": {
+    "description": "Attendance rate label in dashboard summary"
+  },
+  "dashboardExamsToday": "Exams Today",
+  "@dashboardExamsToday": {
+    "description": "Exams today label in dashboard summary"
+  },
+  "dashboardSessionsAttended": "Sessions Attended",
+  "@dashboardSessionsAttended": {
+    "description": "Sessions attended label in dashboard summary"
+  },
+  "dashboardOverallProgress": "Overall Progress",
+  "@dashboardOverallProgress": {
+    "description": "Overall progress label in dashboard summary"
+  },
+  "dashboardSummarySectionTitle": "Today Summary",
+  "@dashboardSummarySectionTitle": {
+    "description": "Section title for dashboard summary cards"
+  },
+  "dashboardMainMenuSectionTitle": "Main Menu",
+  "@dashboardMainMenuSectionTitle": {
+    "description": "Section title for dashboard main menu cards"
+  },
 
   "menuStudents": "Students",
   "@menuStudents": {

@@ -284,6 +284,54 @@ abstract class AppLocalizations {
   /// **'Dashboard'**
   String get dashboardTitle;
 
+  /// Average score label in dashboard summary
+  ///
+  /// In en, this message translates to:
+  /// **'Avg. Score'**
+  String get dashboardAverageScore;
+
+  /// Classes today label in dashboard summary
+  ///
+  /// In en, this message translates to:
+  /// **'Classes Today'**
+  String get dashboardClassesToday;
+
+  /// Attendance rate label in dashboard summary
+  ///
+  /// In en, this message translates to:
+  /// **'Attendance Rate'**
+  String get dashboardAttendanceRate;
+
+  /// Exams today label in dashboard summary
+  ///
+  /// In en, this message translates to:
+  /// **'Exams Today'**
+  String get dashboardExamsToday;
+
+  /// Sessions attended label in dashboard summary
+  ///
+  /// In en, this message translates to:
+  /// **'Sessions Attended'**
+  String get dashboardSessionsAttended;
+
+  /// Overall progress label in dashboard summary
+  ///
+  /// In en, this message translates to:
+  /// **'Overall Progress'**
+  String get dashboardOverallProgress;
+
+  /// Section title for dashboard summary cards
+  ///
+  /// In en, this message translates to:
+  /// **'Today Summary'**
+  String get dashboardSummarySectionTitle;
+
+  /// Section title for dashboard main menu cards
+  ///
+  /// In en, this message translates to:
+  /// **'Main Menu'**
+  String get dashboardMainMenuSectionTitle;
+
   /// Students menu
   ///
   /// In en, this message translates to:

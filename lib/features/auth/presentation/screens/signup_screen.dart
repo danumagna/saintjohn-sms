@@ -27,7 +27,6 @@ class _SignupScreenState extends State<SignupScreen> {
   final _confirmPasswordController = TextEditingController();
   bool _agreeToTerms = false;
   bool _isLoading = false;
-  String _userType = 'student';
 
   @override
   void dispose() {
@@ -105,8 +104,12 @@ class _SignupScreenState extends State<SignupScreen> {
                     .fadeIn(duration: const Duration(milliseconds: 400))
                     .slideY(begin: 0.2, end: 0),
                 const SizedBox(height: AppDimensions.paddingXL),
-                // User Type Selection
+                // Parent-only signup info
                 Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppDimensions.paddingM,
+                    vertical: AppDimensions.paddingM,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.surface,
                     borderRadius: BorderRadius.circular(AppDimensions.radiusM),
@@ -114,17 +117,21 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                   child: Row(
                     children: [
-                      Expanded(
-                        child: _buildUserTypeOption(
-                          label: l10n.authSignUpAsStudent,
-                          value: 'student',
-                        ),
+                      const Icon(
+                        Iconsax.people,
+                        size: 18,
+                        color: AppColors.primary,
                       ),
-
+                      const SizedBox(width: AppDimensions.paddingS),
                       Expanded(
-                        child: _buildUserTypeOption(
-                          label: l10n.authSignUpAsParent,
-                          value: 'parent',
+                        child: Text(
+                          l10n.authSignUpAsParent,
+                          style: const TextStyle(
+                            fontFamily: 'Poppins',
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
                         ),
                       ),
                     ],
@@ -323,44 +330,6 @@ class _SignupScreenState extends State<SignupScreen> {
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildUserTypeOption({required String label, required String value}) {
-    final isSelected = _userType == value;
-
-    return GestureDetector(
-      onTap: () => setState(() => _userType = value),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: AppDimensions.paddingM),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppDimensions.radiusS),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const SizedBox(width: AppDimensions.paddingS),
-            Flexible(
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: isSelected
-                        ? AppColors.textOnPrimary
-                        : AppColors.textSecondary,
-                  ),
-                ),
-              ),
-            ),
-          ],
         ),
       ),
     );

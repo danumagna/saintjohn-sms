@@ -35,6 +35,14 @@
 
   "dashboardWelcome": "Selamat Datang, {name}",
   "dashboardTitle": "Beranda",
+  "dashboardAverageScore": "Nilai Rata-rata",
+  "dashboardClassesToday": "Kelas Hari Ini",
+  "dashboardAttendanceRate": "Tingkat Kehadiran",
+  "dashboardExamsToday": "Ujian Hari Ini",
+  "dashboardSessionsAttended": "Sesi Dihadiri",
+  "dashboardOverallProgress": "Progress Keseluruhan",
+  "dashboardSummarySectionTitle": "Ringkasan Hari Ini",
+  "dashboardMainMenuSectionTitle": "Menu Utama",
 
   "menuStudents": "Siswa",
   "menuStudentRegistration": "Pendaftaran",

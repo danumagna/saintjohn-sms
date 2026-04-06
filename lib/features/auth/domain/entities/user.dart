@@ -9,6 +9,10 @@ class User {
   final String? grade; // Only for students
   final String? className; // Only for students
   final DateTime createdAt;
+  final String? userToken;
+  final DateTime? userTokenExpiry;
+  final int? studentId;
+  final List<int>? childrenStudentId;
 
   const User({
     required this.id,
@@ -20,6 +24,10 @@ class User {
     this.grade,
     this.className,
     required this.createdAt,
+    this.userToken,
+    this.userTokenExpiry,
+    this.studentId,
+    this.childrenStudentId,
   });
 
   User copyWith({
@@ -32,6 +40,10 @@ class User {
     String? grade,
     String? className,
     DateTime? createdAt,
+    String? userToken,
+    DateTime? userTokenExpiry,
+    int? studentId,
+    List<int>? childrenStudentId,
   }) {
     return User(
       id: id ?? this.id,
@@ -43,6 +55,10 @@ class User {
       grade: grade ?? this.grade,
       className: className ?? this.className,
       createdAt: createdAt ?? this.createdAt,
+      userToken: userToken ?? this.userToken,
+      userTokenExpiry: userTokenExpiry ?? this.userTokenExpiry,
+      studentId: studentId ?? this.studentId,
+      childrenStudentId: childrenStudentId ?? this.childrenStudentId,
     );
   }
 

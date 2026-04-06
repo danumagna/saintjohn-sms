@@ -9,10 +9,12 @@ import '../../../../core/constants/app_assets.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../routing/app_router.dart';
-import '../../../../shared/data/dummy/dummy_users.dart';
 import '../../../../shared/providers/shared_providers.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/inputs/app_text_field.dart';
+import '../../data/models/login_request.dart';
+import '../../data/repositories/auth_repository.dart';
+import '../../providers/auth_provider.dart';
 
 /// Login screen with parent/student tabs.
 class LoginScreen extends ConsumerStatefulWidget {
@@ -31,10 +33,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   bool _rememberMe = false;
   bool _isLoading = false;
 
-  // Temporary dev autofill credentials.
-  static const String _parentEmail = 'danuparent@saintjohn.com';
-  static const String _studentEmail = 'danustudent@saintjohn.com';
-  static const String _defaultPassword = 'saintjohn1!';
+  // Dev autofill credentials (from API test data)
+  static const String _studentEmail = 'siswaaja@gmail.com';
+  static const String _studentPassword = 'Msi010803!';
+  static const String _parentEmail = 'regiscaptcha@gmail.com';
+  static const String _parentPassword = '123456';
 
   @override
   void initState() {
@@ -46,7 +49,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   void _applyDevAutofillForIndex(int index) {
     final isParent = index == 1;
     _emailController.text = isParent ? _parentEmail : _studentEmail;
-    _passwordController.text = _defaultPassword;
+    _passwordController.text = isParent ? _parentPassword : _studentPassword;
   }
 
   @override
@@ -62,25 +65,56 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
     setState(() => _isLoading = true);
 
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 1));
-
     final isParent = _tabController.index == 1;
-    final user = isParent
-        ? DummyUsers.getDefaultParent()
-        : DummyUsers.getDefaultStudent();
+    final loginType = isParent ? 'parent' : 'student';
 
-    ref.read(currentUserProvider.notifier).state = user;
+    try {
+      final authRepository = ref.read(authRepositoryProvider);
 
-    if (mounted) {
-      setState(() => _isLoading = false);
+      final request = LoginRequest(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        loginType: loginType,
+      );
 
-      if (isParent) {
-        context.go(AppRoutes.parentDashboard);
-      } else {
-        context.go(AppRoutes.studentDashboard);
+      final user = await authRepository.login(request);
+
+      ref.read(currentUserProvider.notifier).state = user;
+
+      if (mounted) {
+        setState(() => _isLoading = false);
+
+        if (isParent) {
+          context.go(AppRoutes.parentDashboard);
+        } else {
+          context.go(AppRoutes.studentDashboard);
+        }
+      }
+    } on AuthException catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _showErrorSnackbar(e.message);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _showErrorSnackbar('An unexpected error occurred');
       }
     }
+  }
+
+  void _showErrorSnackbar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppColors.error,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(AppDimensions.paddingM),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppDimensions.radiusS),
+        ),
+      ),
+    );
   }
 
   @override

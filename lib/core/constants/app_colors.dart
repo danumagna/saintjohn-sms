@@ -35,6 +35,7 @@ class AppColors {
   static const Color errorLight = Color(0xFFFEE2E2);
   static const Color info = Color(0xFF3B82F6);
   static const Color infoLight = Color(0xFFDBEAFE);
+  static const Color schedule = Color(0xFFAE75DA);
 
   // Border Colors
   static const Color border = Color(0xFFE5E7EB);

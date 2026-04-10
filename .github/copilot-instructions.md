@@ -678,6 +678,7 @@ docs(readme): update setup instructions
 4. **Riverpod patterns** - Follow established provider patterns for consistency
 5. **Animation consistency** - Use defined animation durations and curves
 6. **Dummy data isolation** - Keep all dummy data in designated folders for easy replacement later
+7. **No production backend access** - Never use production API endpoints, tokens, or credentials during development/testing. Only use non-production environments (dev/qa/staging/sandbox).
 
 ---
 

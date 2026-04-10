@@ -70,6 +70,72 @@ class AuthRepository {
     }
   }
 
+  /// Sign up parent account.
+  /// Returns success message on success, throws [AuthException] on failure.
+  Future<String> signupParent({
+    required String nameParent,
+    required String emailParent,
+    required String phoneParent,
+    required String passwordParent,
+  }) async {
+    try {
+      final response = await _apiClient.post(
+        ApiEndpoints.signupParent,
+        data: <String, dynamic>{
+          'nameParent': nameParent,
+          'emailParent': emailParent,
+          'phoneParent': phoneParent,
+          'passwordParent': passwordParent,
+        },
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        final apiResponse = ApiResponse<dynamic>.fromJson(
+          response.data as Map<String, dynamic>,
+          null,
+        );
+
+        if (!apiResponse.isSuccess) {
+          throw AuthException(apiResponse.errorMessage ?? 'Sign up failed');
+        }
+
+        return apiResponse.successMessage ?? 'Account created successfully!';
+      }
+
+      if (response.statusCode != null &&
+          response.statusCode! >= 200 &&
+          response.statusCode! < 300) {
+        return 'Account created successfully!';
+      }
+
+      throw const AuthException('Invalid server response');
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout) {
+        throw const AuthException('Connection timeout. Please try again.');
+      }
+      if (e.type == DioExceptionType.connectionError) {
+        throw const AuthException(
+          'No internet connection. Please check your network.',
+        );
+      }
+      if (e.response != null) {
+        final data = e.response?.data;
+        if (data is Map<String, dynamic>) {
+          final message = data['message'] as Map<String, dynamic>?;
+          final errorMsg = message?['errmsg'] as String?;
+          if (errorMsg != null && errorMsg.isNotEmpty) {
+            throw AuthException(errorMsg);
+          }
+        }
+      }
+      throw AuthException('Sign up failed: ${e.message}');
+    } catch (e) {
+      if (e is AuthException) rethrow;
+      throw AuthException('An unexpected error occurred: $e');
+    }
+  }
+
   /// Logout user.
   void logout() {
     _apiClient.clearAuthToken();

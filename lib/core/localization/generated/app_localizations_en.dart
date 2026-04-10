@@ -66,10 +66,40 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authFullNameLabel => 'Full Name';
 
   @override
+  String get authGuardianNameHint => 'Enter parent/guardian full name';
+
+  @override
+  String get authGuardianNameLabel => 'Parent/Guardian full name';
+
+  @override
   String get authPhoneHint => 'Enter your phone number';
 
   @override
   String get authPhoneLabel => 'Phone Number';
+
+  @override
+  String get authGuardianPhoneHint => 'Enter parent/guardian phone number';
+
+  @override
+  String get authGuardianPhoneLabel => 'Parent/Guardian phone number';
+
+  @override
+  String get authGuardianEmailHint => 'Enter parent/guardian email address';
+
+  @override
+  String get authGuardianEmailLabel => 'Parent/Guardian email address';
+
+  @override
+  String get authConfirmEmailHint => 'Retype email address';
+
+  @override
+  String get authConfirmEmailLabel => 'Retype email address';
+
+  @override
+  String get authRetypePasswordHint => 'Retype password';
+
+  @override
+  String get authRetypePasswordLabel => 'Retype password';
 
   @override
   String get authConfirmPasswordHint => 'Confirm your password';
@@ -238,6 +268,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get validationEmail => 'Please enter a valid email';
+
+  @override
+  String get validationEmailMatch => 'Email addresses do not match';
 
   @override
   String get validationPasswordMin => 'Password must be at least 8 characters';

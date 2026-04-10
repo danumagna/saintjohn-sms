@@ -212,6 +212,18 @@ abstract class AppLocalizations {
   /// **'Full Name'**
   String get authFullNameLabel;
 
+  /// Parent or guardian full name input hint
+  ///
+  /// In en, this message translates to:
+  /// **'Enter parent/guardian full name'**
+  String get authGuardianNameHint;
+
+  /// Parent or guardian full name input label
+  ///
+  /// In en, this message translates to:
+  /// **'Parent/Guardian full name'**
+  String get authGuardianNameLabel;
+
   /// Phone input hint
   ///
   /// In en, this message translates to:
@@ -223,6 +235,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Phone Number'**
   String get authPhoneLabel;
+
+  /// Parent or guardian phone input hint
+  ///
+  /// In en, this message translates to:
+  /// **'Enter parent/guardian phone number'**
+  String get authGuardianPhoneHint;
+
+  /// Parent or guardian phone input label
+  ///
+  /// In en, this message translates to:
+  /// **'Parent/Guardian phone number'**
+  String get authGuardianPhoneLabel;
+
+  /// Parent or guardian email input hint
+  ///
+  /// In en, this message translates to:
+  /// **'Enter parent/guardian email address'**
+  String get authGuardianEmailHint;
+
+  /// Parent or guardian email input label
+  ///
+  /// In en, this message translates to:
+  /// **'Parent/Guardian email address'**
+  String get authGuardianEmailLabel;
+
+  /// Confirm email input hint
+  ///
+  /// In en, this message translates to:
+  /// **'Retype email address'**
+  String get authConfirmEmailHint;
+
+  /// Confirm email input label
+  ///
+  /// In en, this message translates to:
+  /// **'Retype email address'**
+  String get authConfirmEmailLabel;
+
+  /// Retype password input hint
+  ///
+  /// In en, this message translates to:
+  /// **'Retype password'**
+  String get authRetypePasswordHint;
+
+  /// Retype password input label
+  ///
+  /// In en, this message translates to:
+  /// **'Retype password'**
+  String get authRetypePasswordLabel;
 
   /// Confirm password input hint
   ///
@@ -553,6 +613,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Please enter a valid email'**
   String get validationEmail;
+
+  /// Confirm email validation
+  ///
+  /// In en, this message translates to:
+  /// **'Email addresses do not match'**
+  String get validationEmailMatch;
 
   /// Password minimum length validation
   ///

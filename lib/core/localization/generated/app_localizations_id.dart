@@ -66,10 +66,42 @@ class AppLocalizationsId extends AppLocalizations {
   String get authFullNameLabel => 'Nama Lengkap';
 
   @override
+  String get authGuardianNameHint => 'Masukkan nama orang tua murid / wali';
+
+  @override
+  String get authGuardianNameLabel => 'Nama orang tua murid / wali';
+
+  @override
   String get authPhoneHint => 'Masukkan nomor telepon Anda';
 
   @override
   String get authPhoneLabel => 'Nomor Telepon';
+
+  @override
+  String get authGuardianPhoneHint =>
+      'Masukkan nomor telepon orang tua murid / wali';
+
+  @override
+  String get authGuardianPhoneLabel => 'Nomor telepon orang tua murid / wali';
+
+  @override
+  String get authGuardianEmailHint =>
+      'Masukkan alamat email orang tua murid / wali';
+
+  @override
+  String get authGuardianEmailLabel => 'Alamat email orang tua murid / wali';
+
+  @override
+  String get authConfirmEmailHint => 'Ketik ulang alamat email';
+
+  @override
+  String get authConfirmEmailLabel => 'Ketik ulang alamat email';
+
+  @override
+  String get authRetypePasswordHint => 'Ketik ulang kata sandi';
+
+  @override
+  String get authRetypePasswordLabel => 'Ketik ulang kata sandi';
 
   @override
   String get authConfirmPasswordHint => 'Konfirmasi kata sandi Anda';
@@ -238,6 +270,9 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get validationEmail => 'Masukkan email yang valid';
+
+  @override
+  String get validationEmailMatch => 'Alamat email tidak cocok';
 
   @override
   String get validationPasswordMin => 'Kata sandi minimal 8 karakter';

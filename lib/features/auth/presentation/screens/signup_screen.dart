@@ -7,6 +7,7 @@ import 'package:saintjohn_sms_mobile/core/localization/generated/app_localizatio
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../routing/app_router.dart';
+import '../../data/repositories/auth_repository.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/inputs/app_text_field.dart';
 
@@ -19,9 +20,11 @@ class SignupScreen extends StatefulWidget {
 }
 
 class _SignupScreenState extends State<SignupScreen> {
+  final AuthRepository _authRepository = AuthRepository();
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _confirmEmailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -32,6 +35,7 @@ class _SignupScreenState extends State<SignupScreen> {
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
+    _confirmEmailController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -39,12 +43,14 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Future<void> _handleSignUp() async {
+    final l10n = AppLocalizations.of(context)!;
+
     if (!_formKey.currentState!.validate()) return;
     if (!_agreeToTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please agree to the Terms & Conditions'),
-          backgroundColor: AppColors.error,
+          content: Text('Check the terms and conditions before continue'),
+          backgroundColor: AppColors.warning,
         ),
       );
       return;
@@ -52,20 +58,39 @@ class _SignupScreenState extends State<SignupScreen> {
 
     setState(() => _isLoading = true);
 
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      final message = await _authRepository.signupParent(
+        nameParent: _nameController.text.trim(),
+        emailParent: _emailController.text.trim(),
+        phoneParent: _phoneController.text.trim(),
+        passwordParent: _passwordController.text,
+      );
 
-    if (mounted) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Account created successfully!'),
-          backgroundColor: AppColors.success,
-        ),
+        SnackBar(content: Text(message), backgroundColor: AppColors.success),
       );
 
       context.go(AppRoutes.login);
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message), backgroundColor: AppColors.error),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.commonError),
+          backgroundColor: AppColors.error,
+        ),
+      );
     }
   }
 
@@ -144,8 +169,8 @@ class _SignupScreenState extends State<SignupScreen> {
                 // Full Name
                 AppTextField(
                       controller: _nameController,
-                      label: l10n.authFullNameLabel,
-                      hint: l10n.authFullNameHint,
+                      label: l10n.authGuardianNameLabel,
+                      hint: l10n.authGuardianNameHint,
                       prefixIcon: Iconsax.user,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
@@ -164,8 +189,8 @@ class _SignupScreenState extends State<SignupScreen> {
                 // Email
                 AppTextField(
                       controller: _emailController,
-                      label: l10n.authEmailLabel,
-                      hint: l10n.authEmailHint,
+                      label: l10n.authGuardianEmailLabel,
+                      hint: l10n.authGuardianEmailHint,
                       keyboardType: TextInputType.emailAddress,
                       prefixIcon: Iconsax.sms,
                       validator: (value) {
@@ -185,11 +210,38 @@ class _SignupScreenState extends State<SignupScreen> {
                     )
                     .slideX(begin: -0.1, end: 0),
                 const SizedBox(height: AppDimensions.paddingM),
+                // Confirm Email
+                AppTextField(
+                      controller: _confirmEmailController,
+                      label: l10n.authConfirmEmailLabel,
+                      hint: l10n.authConfirmEmailHint,
+                      keyboardType: TextInputType.emailAddress,
+                      prefixIcon: Iconsax.sms_tracking,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return l10n.validationRequired;
+                        }
+                        if (!value.contains('@')) {
+                          return l10n.validationEmail;
+                        }
+                        if (value.trim() != _emailController.text.trim()) {
+                          return l10n.validationEmailMatch;
+                        }
+                        return null;
+                      },
+                    )
+                    .animate()
+                    .fadeIn(
+                      delay: const Duration(milliseconds: 400),
+                      duration: const Duration(milliseconds: 400),
+                    )
+                    .slideX(begin: -0.1, end: 0),
+                const SizedBox(height: AppDimensions.paddingM),
                 // Phone
                 AppTextField(
                       controller: _phoneController,
-                      label: l10n.authPhoneLabel,
-                      hint: l10n.authPhoneHint,
+                      label: l10n.authGuardianPhoneLabel,
+                      hint: l10n.authGuardianPhoneHint,
                       keyboardType: TextInputType.phone,
                       prefixIcon: Iconsax.call,
                       validator: (value) {
@@ -201,7 +253,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     )
                     .animate()
                     .fadeIn(
-                      delay: const Duration(milliseconds: 400),
+                      delay: const Duration(milliseconds: 500),
                       duration: const Duration(milliseconds: 400),
                     )
                     .slideX(begin: -0.1, end: 0),
@@ -225,7 +277,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     )
                     .animate()
                     .fadeIn(
-                      delay: const Duration(milliseconds: 500),
+                      delay: const Duration(milliseconds: 600),
                       duration: const Duration(milliseconds: 400),
                     )
                     .slideX(begin: -0.1, end: 0),
@@ -233,8 +285,8 @@ class _SignupScreenState extends State<SignupScreen> {
                 // Confirm Password
                 AppTextField(
                       controller: _confirmPasswordController,
-                      label: l10n.authConfirmPasswordLabel,
-                      hint: l10n.authConfirmPasswordHint,
+                      label: l10n.authRetypePasswordLabel,
+                      hint: l10n.authRetypePasswordHint,
                       obscureText: true,
                       prefixIcon: Iconsax.lock,
                       textInputAction: TextInputAction.done,
@@ -250,7 +302,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     )
                     .animate()
                     .fadeIn(
-                      delay: const Duration(milliseconds: 600),
+                      delay: const Duration(milliseconds: 700),
                       duration: const Duration(milliseconds: 400),
                     )
                     .slideX(begin: -0.1, end: 0),
@@ -281,7 +333,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     ),
                   ],
                 ).animate().fadeIn(
-                  delay: const Duration(milliseconds: 700),
+                  delay: const Duration(milliseconds: 800),
                   duration: const Duration(milliseconds: 400),
                 ),
                 const SizedBox(height: AppDimensions.paddingXL),
@@ -293,7 +345,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     )
                     .animate()
                     .fadeIn(
-                      delay: const Duration(milliseconds: 800),
+                      delay: const Duration(milliseconds: 900),
                       duration: const Duration(milliseconds: 400),
                     )
                     .slideY(begin: 0.2, end: 0),
@@ -324,7 +376,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     ),
                   ],
                 ).animate().fadeIn(
-                  delay: const Duration(milliseconds: 900),
+                  delay: const Duration(milliseconds: 1000),
                   duration: const Duration(milliseconds: 400),
                 ),
               ],

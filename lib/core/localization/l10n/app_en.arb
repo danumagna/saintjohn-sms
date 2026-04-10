@@ -79,6 +79,14 @@
   "@authFullNameLabel": {
     "description": "Full name input label"
   },
+  "authGuardianNameHint": "Enter parent/guardian full name",
+  "@authGuardianNameHint": {
+    "description": "Parent or guardian full name input hint"
+  },
+  "authGuardianNameLabel": "Parent/Guardian full name",
+  "@authGuardianNameLabel": {
+    "description": "Parent or guardian full name input label"
+  },
   "authPhoneHint": "Enter your phone number",
   "@authPhoneHint": {
     "description": "Phone input hint"
@@ -86,6 +94,38 @@
   "authPhoneLabel": "Phone Number",
   "@authPhoneLabel": {
     "description": "Phone input label"
+  },
+  "authGuardianPhoneHint": "Enter parent/guardian phone number",
+  "@authGuardianPhoneHint": {
+    "description": "Parent or guardian phone input hint"
+  },
+  "authGuardianPhoneLabel": "Parent/Guardian phone number",
+  "@authGuardianPhoneLabel": {
+    "description": "Parent or guardian phone input label"
+  },
+  "authGuardianEmailHint": "Enter parent/guardian email address",
+  "@authGuardianEmailHint": {
+    "description": "Parent or guardian email input hint"
+  },
+  "authGuardianEmailLabel": "Parent/Guardian email address",
+  "@authGuardianEmailLabel": {
+    "description": "Parent or guardian email input label"
+  },
+  "authConfirmEmailHint": "Retype email address",
+  "@authConfirmEmailHint": {
+    "description": "Confirm email input hint"
+  },
+  "authConfirmEmailLabel": "Retype email address",
+  "@authConfirmEmailLabel": {
+    "description": "Confirm email input label"
+  },
+  "authRetypePasswordHint": "Retype password",
+  "@authRetypePasswordHint": {
+    "description": "Retype password input hint"
+  },
+  "authRetypePasswordLabel": "Retype password",
+  "@authRetypePasswordLabel": {
+    "description": "Retype password input label"
   },
   "authConfirmPasswordHint": "Confirm your password",
   "@authConfirmPasswordHint": {
@@ -318,6 +358,10 @@
   "validationEmail": "Please enter a valid email",
   "@validationEmail": {
     "description": "Email validation"
+  },
+  "validationEmailMatch": "Email addresses do not match",
+  "@validationEmailMatch": {
+    "description": "Confirm email validation"
   },
   "validationPasswordMin": "Password must be at least 8 characters",
   "@validationPasswordMin": {

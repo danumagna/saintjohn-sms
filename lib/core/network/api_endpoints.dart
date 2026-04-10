@@ -7,6 +7,7 @@ class ApiEndpoints {
 
   // Auth endpoints
   static const String login = '/msisms006/user/login';
+  static const String signupParent = '/msisms002-parent/add_account_parent';
   static const String checkToken = '/msisms006/user/token';
   static const String checkTokenValid = '/msisms006/user/token-valid';
 

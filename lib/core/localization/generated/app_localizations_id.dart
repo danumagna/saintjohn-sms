@@ -287,8 +287,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get studentsListTitle => 'Daftar Siswa';
 
   @override
-  String get studentsSearchHint =>
-      'Cari berdasarkan nama, NIK, atau nomor kartu keluarga';
+  String get studentsSearchHint => 'Cari berdasarkan nama';
 
   @override
   String get studentsEmptyState => 'Tidak ada siswa ditemukan';

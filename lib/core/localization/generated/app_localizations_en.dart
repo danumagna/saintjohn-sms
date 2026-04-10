@@ -285,7 +285,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get studentsListTitle => 'Student List';
 
   @override
-  String get studentsSearchHint => 'Search by name, NIK, or family card number';
+  String get studentsSearchHint => 'Search by name';
 
   @override
   String get studentsEmptyState => 'No students found';

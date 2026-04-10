@@ -11,6 +11,8 @@ import '../../features/notifications/presentation/screens/notifications_screen.d
 import '../../features/settings/presentation/screens/profile_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../../features/splash/presentation/screens/splash_screen.dart';
+import '../../features/students/domain/entities/student.dart';
+import '../../features/students/presentation/screens/student_detail_screen.dart';
 import '../../features/students/presentation/screens/student_list_screen.dart';
 import '../../features/students/presentation/screens/student_registration_screen.dart';
 import '../../features/guide/presentation/screens/guide_screen.dart';
@@ -38,6 +40,7 @@ class AppRoutes {
   static const String parentDashboard = '/parent/dashboard';
   static const String studentRegistration = '/parent/students/registration';
   static const String studentList = '/parent/students/list';
+  static const String studentDetail = '/parent/students/detail';
   static const String guide = '/parent/guide';
   static const String contactUs = '/parent/contact';
   static const String parentSettings = '/parent/settings';
@@ -118,6 +121,19 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.studentList,
         name: 'studentList',
         builder: (context, state) => const StudentListScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.studentDetail,
+        name: 'studentDetail',
+        builder: (context, state) {
+          final student = state.extra;
+          if (student is! Student) {
+            return const Scaffold(
+              body: Center(child: Text('Student detail data is missing.')),
+            );
+          }
+          return StudentDetailScreen(student: student);
+        },
       ),
       GoRoute(
         path: AppRoutes.guide,

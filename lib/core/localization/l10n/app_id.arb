@@ -101,7 +101,7 @@
   "validationPhone": "Masukkan nomor telepon yang valid",
 
   "studentsListTitle": "Daftar Siswa",
-  "studentsSearchHint": "Cari berdasarkan nama, NIK, atau nomor kartu keluarga",
+  "studentsSearchHint": "Cari berdasarkan nama",
   "studentsEmptyState": "Tidak ada siswa ditemukan",
   "studentsRegistrationTitle": "Pendaftaran Siswa",
   "studentsFullName": "Nama Lengkap",

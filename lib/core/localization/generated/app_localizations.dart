@@ -647,7 +647,7 @@ abstract class AppLocalizations {
   /// Student search hint
   ///
   /// In en, this message translates to:
-  /// **'Search by name, NIK, or family card number'**
+  /// **'Search by name'**
   String get studentsSearchHint;
 
   /// Empty students message

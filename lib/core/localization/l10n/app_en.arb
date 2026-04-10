@@ -380,7 +380,7 @@
   "@studentsListTitle": {
     "description": "Student list screen title"
   },
-  "studentsSearchHint": "Search by name, NIK, or family card number",
+  "studentsSearchHint": "Search by name",
   "@studentsSearchHint": {
     "description": "Student search hint"
   },

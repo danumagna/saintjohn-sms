@@ -1,10 +1,7 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:saintjohn_sms_mobile/core/localization/generated/app_localizations.dart';
 
@@ -29,7 +26,6 @@ class _StudentRegistrationScreenState
     extends ConsumerState<StudentRegistrationScreen> {
   final _formKey = GlobalKey<FormState>();
   final _scrollController = ScrollController();
-  final _imagePicker = ImagePicker();
   final _familyCardNumberController = TextEditingController();
   final _nikController = TextEditingController();
   final _fullNameController = TextEditingController();
@@ -40,7 +36,6 @@ class _StudentRegistrationScreenState
   bool _agreeInfoStepOne = false;
   bool _agreeInfoStepTwo = false;
   bool _isLoading = false;
-  XFile? _selectedPhoto;
 
   DateTime? _selectedBirthDate;
 
@@ -136,10 +131,25 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
     super.initState();
     _selectedAcademicYear = _academicYearOptions.first;
     _syncClassAndSchoolSelection();
+    _restoreDraftIfAny();
+
+    _familyCardNumberController.addListener(_onFormFieldChanged);
+    _nikController.addListener(_onFormFieldChanged);
+    _fullNameController.addListener(_onFormFieldChanged);
+    _birthDateController.addListener(_onFormFieldChanged);
+    _parentPhoneController.addListener(_onFormFieldChanged);
   }
 
   @override
   void dispose() {
+    _saveDraft();
+
+    _familyCardNumberController.removeListener(_onFormFieldChanged);
+    _nikController.removeListener(_onFormFieldChanged);
+    _fullNameController.removeListener(_onFormFieldChanged);
+    _birthDateController.removeListener(_onFormFieldChanged);
+    _parentPhoneController.removeListener(_onFormFieldChanged);
+
     _scrollController.dispose();
     _familyCardNumberController.dispose();
     _nikController.dispose();
@@ -155,6 +165,68 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
 
     _selectedClass = classes.isNotEmpty ? classes.first : '';
     _selectedSchool = schools.isNotEmpty ? schools.first : '';
+  }
+
+  void _onFormFieldChanged() {
+    _saveDraft();
+  }
+
+  void _restoreDraftIfAny() {
+    final draft = ref.read(studentRegistrationDraftProvider);
+    if (draft == null) {
+      return;
+    }
+
+    _currentStep = draft.currentStep.clamp(0, 2) as int;
+    _agreeInfoStepOne = draft.agreeInfoStepOne;
+    _agreeInfoStepTwo = draft.agreeInfoStepTwo;
+
+    _familyCardNumberController.text = draft.familyCardNumber;
+    _nikController.text = draft.nik;
+    _fullNameController.text = draft.fullName;
+    _birthDateController.text = draft.birthDateText;
+    _parentPhoneController.text = draft.parentPhone;
+
+    _selectedBirthDate = draft.selectedBirthDate;
+    _selectedAcademicYear = draft.selectedAcademicYear.isNotEmpty
+        ? draft.selectedAcademicYear
+        : _selectedAcademicYear;
+    _selectedGender = draft.selectedGender;
+    _selectedSchoolLevel = draft.selectedSchoolLevel;
+
+    _syncClassAndSchoolSelection();
+
+    if (_classOptions.contains(draft.selectedClass)) {
+      _selectedClass = draft.selectedClass;
+    }
+    if (_schoolOptions.contains(draft.selectedSchool)) {
+      _selectedSchool = draft.selectedSchool;
+    }
+
+    _selectedPaymentMethod = draft.selectedPaymentMethod;
+  }
+
+  void _saveDraft() {
+    ref
+        .read(studentRegistrationDraftProvider.notifier)
+        .state = StudentRegistrationDraft(
+      currentStep: _currentStep,
+      agreeInfoStepOne: _agreeInfoStepOne,
+      agreeInfoStepTwo: _agreeInfoStepTwo,
+      familyCardNumber: _familyCardNumberController.text.trim(),
+      nik: _nikController.text.trim(),
+      fullName: _fullNameController.text.trim(),
+      birthDateText: _birthDateController.text.trim(),
+      selectedBirthDate: _selectedBirthDate,
+      parentPhone: _parentPhoneController.text.trim(),
+      selectedAcademicYear: _selectedAcademicYear,
+      selectedGender: _selectedGender,
+      selectedSchoolLevel: _selectedSchoolLevel,
+      selectedClass: _selectedClass,
+      selectedSchool: _selectedSchool,
+      selectedPaymentMethod: _selectedPaymentMethod,
+      selectedPhotoPath: null,
+    );
   }
 
   Future<void> _selectBirthDate() async {
@@ -181,78 +253,8 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
         _birthDateController.text =
             '${picked.day}/${picked.month}/${picked.year}';
       });
+      _saveDraft();
     }
-  }
-
-  Future<void> _pickPhoto(ImageSource source) async {
-    try {
-      final photo = await _imagePicker.pickImage(
-        source: source,
-        imageQuality: 85,
-        maxWidth: 1400,
-      );
-
-      if (photo == null || !mounted) {
-        return;
-      }
-
-      setState(() {
-        _selectedPhoto = photo;
-      });
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Gagal mengambil foto.'),
-          backgroundColor: AppColors.error,
-        ),
-      );
-    }
-  }
-
-  void _showPhotoSourceOptions() {
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Iconsax.gallery),
-                title: const Text('Upload photo'),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  _pickPhoto(ImageSource.gallery);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Iconsax.camera),
-                title: const Text('Take photo'),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  _pickPhoto(ImageSource.camera);
-                },
-              ),
-              if (_selectedPhoto != null)
-                ListTile(
-                  leading: const Icon(Iconsax.trash, color: AppColors.error),
-                  title: const Text('Hapus photo'),
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    setState(() {
-                      _selectedPhoto = null;
-                    });
-                  },
-                ),
-            ],
-          ),
-        );
-      },
-    );
   }
 
   void _goToNextStepFromInfoOne() {
@@ -271,6 +273,7 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
     setState(() {
       _currentStep = 1;
     });
+    _saveDraft();
 
     _scrollToTop();
   }
@@ -291,6 +294,7 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
     setState(() {
       _currentStep = 2;
     });
+    _saveDraft();
 
     _scrollToTop();
   }
@@ -336,11 +340,12 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
         parentPhoneNumber: _parentPhoneController.text.trim(),
         paymentMethod: _selectedPaymentMethod,
         parentId: currentUser?.id ?? 'parent_local',
-        avatarUrl: _selectedPhoto?.path,
+        avatarUrl: null,
         createdAt: now,
       );
 
       ref.read(studentsProvider.notifier).addStudent(student);
+      ref.read(studentRegistrationDraftProvider.notifier).state = null;
 
       setState(() => _isLoading = false);
 
@@ -533,6 +538,7 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
               setState(() {
                 _agreeInfoStepOne = value;
               });
+              _saveDraft();
             },
           ),
           const SizedBox(height: AppDimensions.paddingM),
@@ -605,6 +611,7 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
               setState(() {
                 _agreeInfoStepTwo = value;
               });
+              _saveDraft();
             },
           ),
           const SizedBox(height: AppDimensions.paddingM),
@@ -865,8 +872,6 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildPhotoPickerSection(),
-            const SizedBox(height: AppDimensions.paddingL),
             _buildDropdown(
               label: 'Tahun ajaran',
               value: _selectedAcademicYear,
@@ -876,6 +881,7 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
                 setState(() {
                   _selectedAcademicYear = value;
                 });
+                _saveDraft();
               },
               icon: Iconsax.calendar,
             ),
@@ -945,6 +951,7 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
                 setState(() {
                   _selectedGender = value;
                 });
+                _saveDraft();
               },
               icon: Iconsax.user,
             ),
@@ -959,6 +966,7 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
                   _selectedSchoolLevel = value;
                   _syncClassAndSchoolSelection();
                 });
+                _saveDraft();
               },
               icon: Iconsax.buildings,
             ),
@@ -972,6 +980,7 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
                 setState(() {
                   _selectedClass = value;
                 });
+                _saveDraft();
               },
               icon: Iconsax.teacher,
             ),
@@ -985,6 +994,7 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
                 setState(() {
                   _selectedSchool = value;
                 });
+                _saveDraft();
               },
               icon: Iconsax.building,
             ),
@@ -1012,6 +1022,7 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
                 setState(() {
                   _selectedPaymentMethod = value;
                 });
+                _saveDraft();
               },
               icon: Iconsax.wallet,
             ),
@@ -1025,137 +1036,6 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
         ),
       ),
     ).animate().fadeIn(duration: const Duration(milliseconds: 250));
-  }
-
-  Widget _buildPhotoPickerSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Photo calon siswa (opsional)',
-          style: TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: AppDimensions.paddingS),
-        Center(
-          child: GestureDetector(
-            onTap: _showPhotoSourceOptions,
-            child: Container(
-              width: 110,
-              height: 110,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.08),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: AppColors.primary.withValues(alpha: 0.3),
-                ),
-              ),
-              child: ClipOval(
-                child: _selectedPhoto != null
-                    ? Image.file(
-                        File(_selectedPhoto!.path),
-                        fit: BoxFit.cover,
-                        width: 110,
-                        height: 110,
-                      )
-                    : const Icon(
-                        Iconsax.profile_circle,
-                        size: 58,
-                        color: AppColors.primary,
-                      ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: AppDimensions.paddingM),
-        Row(
-          children: [
-            Expanded(
-              child: _buildPhotoActionButton(
-                text: 'Upload photo',
-                icon: Iconsax.gallery,
-                onPressed: () => _pickPhoto(ImageSource.gallery),
-              ),
-            ),
-            const SizedBox(width: AppDimensions.paddingS),
-            Expanded(
-              child: _buildPhotoActionButton(
-                text: 'Take photo',
-                icon: Iconsax.camera,
-                onPressed: () => _pickPhoto(ImageSource.camera),
-              ),
-            ),
-          ],
-        ),
-        if (_selectedPhoto != null) ...[
-          const SizedBox(height: AppDimensions.paddingS),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              onPressed: () {
-                setState(() {
-                  _selectedPhoto = null;
-                });
-              },
-              icon: const Icon(Iconsax.trash, size: 16),
-              label: const Text('Hapus photo'),
-            ),
-          ),
-        ],
-        const SizedBox(height: AppDimensions.paddingXS),
-        const Text(
-          'Jika tidak upload, foto default akan digunakan.',
-          style: TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 12,
-            color: AppColors.textSecondary,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPhotoActionButton({
-    required String text,
-    required IconData icon,
-    required VoidCallback onPressed,
-  }) {
-    return SizedBox(
-      height: 48,
-      child: OutlinedButton(
-        onPressed: onPressed,
-        style: OutlinedButton.styleFrom(
-          minimumSize: const Size.fromHeight(48),
-          maximumSize: const Size(double.infinity, 48),
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          textStyle: const TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 18),
-            const SizedBox(width: AppDimensions.paddingXS),
-            Flexible(
-              child: Text(
-                text,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                softWrap: false,
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Widget _buildDropdown({

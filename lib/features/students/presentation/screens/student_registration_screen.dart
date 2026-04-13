@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:saintjohn_sms_mobile/core/localization/generated/app_localizations.dart';
@@ -40,56 +41,34 @@ class _StudentRegistrationScreenState
   DateTime? _selectedBirthDate;
 
   String _selectedAcademicYear = '';
-  String _selectedGender = 'Pria';
-  String _selectedSchoolLevel = 'KB / Playgroup';
+  String _selectedGender = 'Laki - Laki';
+  String _selectedSchoolLevel = '';
   String _selectedClass = '';
   String _selectedSchool = '';
-  String _selectedPaymentMethod = 'Virtual Account';
+  String _selectedPaymentMethod = '';
 
-  final List<String> _genderOptions = ['Pria', 'Wanita'];
-  final List<String> _schoolLevelOptions = [
-    'KB / Playgroup',
-    'TK',
-    'SD',
-    'SMP',
-    'SMA',
-  ];
-  final List<String> _paymentMethodOptions = ['Virtual Account', 'Transfer'];
-
-  final Map<String, List<String>> _classOptionsByLevel = const {
-    'KB': ['Kelompok Bermain'],
-    'TK': ['TK A', 'TK B'],
-    'SD': ['Kelas 1', 'Kelas 2', 'Kelas 3', 'Kelas 4', 'Kelas 5', 'Kelas 6'],
-    'SMP': ['Kelas 7', 'Kelas 8', 'Kelas 9'],
-    'SMA': ['Kelas 10', 'Kelas 11', 'Kelas 12'],
-  };
-
-  final Map<String, List<String>> _schoolOptionsByLevel = const {
-    'KB': ['KB SAINT JOHN BUNGUR', 'KB SAINT JOHN HARAPAN INDAH'],
-    'TK': ['TK SAINT JOHN BUNGUR', 'TK SAINT JOHN HARAPAN INDAH'],
-    'SD': ['SD SAINT JOHN BUNGUR', 'SD SAINT JOHN HARAPAN INDAH'],
-    'SMP': ['SMP SAINT JOHN BUNGUR', 'SMP SAINT JOHN HARAPAN INDAH'],
-    'SMA': ['SMA SAINT JOHN BUNGUR', 'SMA SAINT JOHN HARAPAN INDAH'],
-  };
+  final List<String> _genderOptions = ['Laki - Laki', 'Perempuan'];
 
   List<String> get _academicYearOptions {
     final year = DateTime.now().year;
     return ['$year/${year + 1}', '${year + 1}/${year + 2}'];
   }
 
-  String get _schoolLevelKey {
-    if (_selectedSchoolLevel.startsWith('KB')) {
+  String _effectiveSelection({
+    required String currentValue,
+    required List<String> options,
+  }) {
+    if (options.contains(currentValue)) {
+      return currentValue;
+    }
+    return options.isNotEmpty ? options.first : '';
+  }
+
+  String _schoolLevelKeyFor(String value) {
+    if (value.startsWith('KB')) {
       return 'KB';
     }
-    return _selectedSchoolLevel;
-  }
-
-  List<String> get _classOptions {
-    return _classOptionsByLevel[_schoolLevelKey] ?? const [];
-  }
-
-  List<String> get _schoolOptions {
-    return _schoolOptionsByLevel[_schoolLevelKey] ?? const [];
+    return value;
   }
 
   static const String _infoStepTwoContent = '''
@@ -130,26 +109,10 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
   void initState() {
     super.initState();
     _selectedAcademicYear = _academicYearOptions.first;
-    _syncClassAndSchoolSelection();
-    _restoreDraftIfAny();
-
-    _familyCardNumberController.addListener(_onFormFieldChanged);
-    _nikController.addListener(_onFormFieldChanged);
-    _fullNameController.addListener(_onFormFieldChanged);
-    _birthDateController.addListener(_onFormFieldChanged);
-    _parentPhoneController.addListener(_onFormFieldChanged);
   }
 
   @override
   void dispose() {
-    _saveDraft();
-
-    _familyCardNumberController.removeListener(_onFormFieldChanged);
-    _nikController.removeListener(_onFormFieldChanged);
-    _fullNameController.removeListener(_onFormFieldChanged);
-    _birthDateController.removeListener(_onFormFieldChanged);
-    _parentPhoneController.removeListener(_onFormFieldChanged);
-
     _scrollController.dispose();
     _familyCardNumberController.dispose();
     _nikController.dispose();
@@ -159,74 +122,69 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
     super.dispose();
   }
 
-  void _syncClassAndSchoolSelection() {
-    final classes = _classOptions;
-    final schools = _schoolOptions;
+  void _syncClassAndSchoolSelection({
+    required List<String> allClassOptions,
+    required List<String> allSchoolOptions,
+  }) {
+    final classes = _classOptionsForLevel(allClassOptions);
+    final schools = _schoolOptionsForLevel(allSchoolOptions);
 
     _selectedClass = classes.isNotEmpty ? classes.first : '';
     _selectedSchool = schools.isNotEmpty ? schools.first : '';
   }
 
-  void _onFormFieldChanged() {
-    _saveDraft();
+  List<String> _classOptionsForLevel(
+    List<String> options, {
+    String? selectedLevel,
+  }) {
+    final key = _schoolLevelKeyFor(
+      selectedLevel ?? _selectedSchoolLevel,
+    ).toLowerCase();
+    return options.where((item) => _isClassMatchLevel(item, key)).toList();
   }
 
-  void _restoreDraftIfAny() {
-    final draft = ref.read(studentRegistrationDraftProvider);
-    if (draft == null) {
-      return;
+  bool _isClassMatchLevel(String className, String levelKey) {
+    final normalized = className.trim().toLowerCase();
+
+    if (levelKey == 'kb') {
+      return normalized.contains('kelompok bermain') ||
+          normalized.startsWith('kb');
     }
 
-    _currentStep = draft.currentStep.clamp(0, 2) as int;
-    _agreeInfoStepOne = draft.agreeInfoStepOne;
-    _agreeInfoStepTwo = draft.agreeInfoStepTwo;
-
-    _familyCardNumberController.text = draft.familyCardNumber;
-    _nikController.text = draft.nik;
-    _fullNameController.text = draft.fullName;
-    _birthDateController.text = draft.birthDateText;
-    _parentPhoneController.text = draft.parentPhone;
-
-    _selectedBirthDate = draft.selectedBirthDate;
-    _selectedAcademicYear = draft.selectedAcademicYear.isNotEmpty
-        ? draft.selectedAcademicYear
-        : _selectedAcademicYear;
-    _selectedGender = draft.selectedGender;
-    _selectedSchoolLevel = draft.selectedSchoolLevel;
-
-    _syncClassAndSchoolSelection();
-
-    if (_classOptions.contains(draft.selectedClass)) {
-      _selectedClass = draft.selectedClass;
-    }
-    if (_schoolOptions.contains(draft.selectedSchool)) {
-      _selectedSchool = draft.selectedSchool;
+    if (levelKey == 'tk') {
+      return normalized.startsWith('tk');
     }
 
-    _selectedPaymentMethod = draft.selectedPaymentMethod;
+    final match = RegExp(r'kelas\s*(\d+)').firstMatch(normalized);
+    final classNumber = int.tryParse(match?.group(1) ?? '');
+    if (classNumber == null) {
+      return false;
+    }
+
+    if (levelKey == 'sd') {
+      return classNumber >= 1 && classNumber <= 6;
+    }
+    if (levelKey == 'smp') {
+      return classNumber >= 7 && classNumber <= 9;
+    }
+    if (levelKey == 'sma') {
+      return classNumber >= 10 && classNumber <= 12;
+    }
+
+    return false;
   }
 
-  void _saveDraft() {
-    ref
-        .read(studentRegistrationDraftProvider.notifier)
-        .state = StudentRegistrationDraft(
-      currentStep: _currentStep,
-      agreeInfoStepOne: _agreeInfoStepOne,
-      agreeInfoStepTwo: _agreeInfoStepTwo,
-      familyCardNumber: _familyCardNumberController.text.trim(),
-      nik: _nikController.text.trim(),
-      fullName: _fullNameController.text.trim(),
-      birthDateText: _birthDateController.text.trim(),
-      selectedBirthDate: _selectedBirthDate,
-      parentPhone: _parentPhoneController.text.trim(),
-      selectedAcademicYear: _selectedAcademicYear,
-      selectedGender: _selectedGender,
-      selectedSchoolLevel: _selectedSchoolLevel,
-      selectedClass: _selectedClass,
-      selectedSchool: _selectedSchool,
-      selectedPaymentMethod: _selectedPaymentMethod,
-      selectedPhotoPath: null,
-    );
+  List<String> _schoolOptionsForLevel(
+    List<String> options, {
+    String? selectedLevel,
+  }) {
+    final key = _schoolLevelKeyFor(
+      selectedLevel ?? _selectedSchoolLevel,
+    ).toLowerCase();
+    return options.where((item) {
+      final normalized = item.toLowerCase();
+      return normalized.startsWith(key);
+    }).toList();
   }
 
   Future<void> _selectBirthDate() async {
@@ -253,7 +211,6 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
         _birthDateController.text =
             '${picked.day}/${picked.month}/${picked.year}';
       });
-      _saveDraft();
     }
   }
 
@@ -273,7 +230,6 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
     setState(() {
       _currentStep = 1;
     });
-    _saveDraft();
 
     _scrollToTop();
   }
@@ -294,7 +250,6 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
     setState(() {
       _currentStep = 2;
     });
-    _saveDraft();
 
     _scrollToTop();
   }
@@ -313,6 +268,57 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
   Future<void> _submitRegistration() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final masters = ref.read(studentRegistrationMastersProvider).asData?.value;
+    final academicYearOptions = masters?.academicYears ?? const <String>[];
+    final schoolLevelOptions = masters?.schoolLevels ?? const <String>[];
+    final classSourceOptions = masters?.schoolGrades ?? const <String>[];
+    final schoolSourceOptions = masters?.schoolUnits ?? const <String>[];
+    final paymentMethodOptions = masters?.paymentMethods ?? const <String>[];
+
+    final effectiveSchoolLevel = _effectiveSelection(
+      currentValue: _selectedSchoolLevel,
+      options: schoolLevelOptions,
+    );
+    final effectiveClassOptions = _classOptionsForLevel(
+      classSourceOptions,
+      selectedLevel: effectiveSchoolLevel,
+    );
+    final effectiveSchoolOptions = _schoolOptionsForLevel(
+      schoolSourceOptions,
+      selectedLevel: effectiveSchoolLevel,
+    );
+
+    final effectiveAcademicYear = _effectiveSelection(
+      currentValue: _selectedAcademicYear,
+      options: academicYearOptions,
+    );
+    final effectiveClass = _effectiveSelection(
+      currentValue: _selectedClass,
+      options: effectiveClassOptions,
+    );
+    final effectiveSchool = _effectiveSelection(
+      currentValue: _selectedSchool,
+      options: effectiveSchoolOptions,
+    );
+    final effectivePaymentMethod = _effectiveSelection(
+      currentValue: _selectedPaymentMethod,
+      options: paymentMethodOptions,
+    );
+
+    if (effectiveAcademicYear.isEmpty ||
+        effectiveSchoolLevel.isEmpty ||
+        effectiveClass.isEmpty ||
+        effectiveSchool.isEmpty ||
+        effectivePaymentMethod.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Data master dari API belum tersedia.'),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     // Simulate API call
@@ -325,28 +331,26 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
       final student = Student(
         id: createdId,
         fullName: _fullNameController.text.trim(),
-        academicYear: _selectedAcademicYear,
+        academicYear: effectiveAcademicYear,
         familyCardNumber: _familyCardNumberController.text.trim(),
         nik: _nikController.text.trim(),
         nisn: createdId,
-        schoolLevel: _selectedSchoolLevel,
-        grade: _selectedSchoolLevel,
-        className: _selectedClass,
-        schoolName: _selectedSchool,
+        schoolLevel: effectiveSchoolLevel,
+        grade: effectiveSchoolLevel,
+        className: effectiveClass,
+        schoolName: effectiveSchool,
         gender: _selectedGender,
         birthDate: _selectedBirthDate ?? now,
         birthPlace: '-',
         address: '-',
         parentPhoneNumber: _parentPhoneController.text.trim(),
-        paymentMethod: _selectedPaymentMethod,
+        paymentMethod: effectivePaymentMethod,
         parentId: currentUser?.id ?? 'parent_local',
         avatarUrl: null,
         createdAt: now,
       );
 
       ref.read(studentsProvider.notifier).addStudent(student);
-      ref.read(studentRegistrationDraftProvider.notifier).state = null;
-
       setState(() => _isLoading = false);
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -538,7 +542,6 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
               setState(() {
                 _agreeInfoStepOne = value;
               });
-              _saveDraft();
             },
           ),
           const SizedBox(height: AppDimensions.paddingM),
@@ -611,7 +614,6 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
               setState(() {
                 _agreeInfoStepTwo = value;
               });
-              _saveDraft();
             },
           ),
           const SizedBox(height: AppDimensions.paddingM),
@@ -865,6 +867,46 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
   }
 
   Widget _buildRegistrationForm(AppLocalizations l10n) {
+    final mastersAsync = ref.watch(studentRegistrationMastersProvider);
+    final masters = mastersAsync.asData?.value;
+
+    final academicYearOptions = masters?.academicYears ?? const <String>[];
+    final schoolLevelOptions = masters?.schoolLevels ?? const <String>[];
+    final classSourceOptions = masters?.schoolGrades ?? const <String>[];
+    final schoolSourceOptions = masters?.schoolUnits ?? const <String>[];
+    final paymentMethodOptions = masters?.paymentMethods ?? const <String>[];
+
+    final selectedSchoolLevel = _effectiveSelection(
+      currentValue: _selectedSchoolLevel,
+      options: schoolLevelOptions,
+    );
+
+    final classOptions = _classOptionsForLevel(
+      classSourceOptions,
+      selectedLevel: selectedSchoolLevel,
+    );
+    final schoolOptions = _schoolOptionsForLevel(
+      schoolSourceOptions,
+      selectedLevel: selectedSchoolLevel,
+    );
+
+    final selectedAcademicYear = _effectiveSelection(
+      currentValue: _selectedAcademicYear,
+      options: academicYearOptions,
+    );
+    final selectedClass = _effectiveSelection(
+      currentValue: _selectedClass,
+      options: classOptions,
+    );
+    final selectedSchool = _effectiveSelection(
+      currentValue: _selectedSchool,
+      options: schoolOptions,
+    );
+    final selectedPaymentMethod = _effectiveSelection(
+      currentValue: _selectedPaymentMethod,
+      options: paymentMethodOptions,
+    );
+
     return Form(
       key: _formKey,
       child: Container(
@@ -872,16 +914,20 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (mastersAsync.isLoading)
+              const Padding(
+                padding: EdgeInsets.only(bottom: AppDimensions.paddingM),
+                child: LinearProgressIndicator(minHeight: 4),
+              ),
             _buildDropdown(
               label: 'Tahun ajaran',
-              value: _selectedAcademicYear,
-              items: _academicYearOptions,
+              value: selectedAcademicYear,
+              items: academicYearOptions,
               onChanged: (value) {
                 if (value == null) return;
                 setState(() {
                   _selectedAcademicYear = value;
                 });
-                _saveDraft();
               },
               icon: Iconsax.calendar,
             ),
@@ -889,12 +935,19 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
             AppTextField(
               controller: _familyCardNumberController,
               label: 'Nomor Kartu Keluarga',
-              hint: 'Masukkan nomor kartu keluarga',
+              hint: 'Masukkan nomor kartu keluarga (16 digit)',
               prefixIcon: Iconsax.card,
               keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(16),
+              ],
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return l10n.validationRequired;
+                }
+                if (value.length != 16) {
+                  return 'Nomor Kartu Keluarga harus 16 digit';
                 }
                 return null;
               },
@@ -903,15 +956,31 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
             AppTextField(
               controller: _nikController,
               label: 'NIK',
-              hint: 'Masukkan NIK',
+              hint: 'Masukkan NIK (16 digit)',
               prefixIcon: Iconsax.personalcard,
               keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(16),
+              ],
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return l10n.validationRequired;
                 }
+                if (value.length != 16) {
+                  return 'NIK harus 16 digit';
+                }
                 return null;
               },
+            ),
+            const SizedBox(height: AppDimensions.paddingS),
+            const Text(
+              'Nomor Kartu Keluarga dan NIK wajib 16 digit.',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
             ),
             const SizedBox(height: AppDimensions.paddingM),
             AppTextField(
@@ -951,50 +1020,49 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
                 setState(() {
                   _selectedGender = value;
                 });
-                _saveDraft();
               },
               icon: Iconsax.user,
             ),
             const SizedBox(height: AppDimensions.paddingM),
             _buildDropdown(
               label: 'Tingkat Sekolah',
-              value: _selectedSchoolLevel,
-              items: _schoolLevelOptions,
+              value: selectedSchoolLevel.isEmpty ? null : selectedSchoolLevel,
+              items: schoolLevelOptions,
               onChanged: (value) {
                 if (value == null) return;
                 setState(() {
                   _selectedSchoolLevel = value;
-                  _syncClassAndSchoolSelection();
+                  _syncClassAndSchoolSelection(
+                    allClassOptions: classSourceOptions,
+                    allSchoolOptions: schoolSourceOptions,
+                  );
                 });
-                _saveDraft();
               },
               icon: Iconsax.buildings,
             ),
             const SizedBox(height: AppDimensions.paddingM),
             _buildDropdown(
               label: 'Kelas',
-              value: _selectedClass,
-              items: _classOptions,
+              value: selectedClass.isEmpty ? null : selectedClass,
+              items: classOptions,
               onChanged: (value) {
                 if (value == null) return;
                 setState(() {
                   _selectedClass = value;
                 });
-                _saveDraft();
               },
               icon: Iconsax.teacher,
             ),
             const SizedBox(height: AppDimensions.paddingM),
             _buildDropdown(
               label: 'Sekolah',
-              value: _selectedSchool,
-              items: _schoolOptions,
+              value: selectedSchool.isEmpty ? null : selectedSchool,
+              items: schoolOptions,
               onChanged: (value) {
                 if (value == null) return;
                 setState(() {
                   _selectedSchool = value;
                 });
-                _saveDraft();
               },
               icon: Iconsax.building,
             ),
@@ -1015,14 +1083,15 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
             const SizedBox(height: AppDimensions.paddingM),
             _buildDropdown(
               label: 'Metode Pembayaran',
-              value: _selectedPaymentMethod,
-              items: _paymentMethodOptions,
+              value: selectedPaymentMethod.isEmpty
+                  ? null
+                  : selectedPaymentMethod,
+              items: paymentMethodOptions,
               onChanged: (value) {
                 if (value == null) return;
                 setState(() {
                   _selectedPaymentMethod = value;
                 });
-                _saveDraft();
               },
               icon: Iconsax.wallet,
             ),
@@ -1040,7 +1109,7 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
 
   Widget _buildDropdown({
     required String label,
-    required String value,
+    required String? value,
     required List<String> items,
     required ValueChanged<String?> onChanged,
     required IconData icon,
@@ -1066,6 +1135,7 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
           ),
           child: DropdownButtonFormField<String>(
             initialValue: value,
+            isExpanded: true,
             decoration: InputDecoration(
               prefixIcon: Icon(icon, color: AppColors.textSecondary),
               border: InputBorder.none,
@@ -1080,6 +1150,8 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
                 value: item,
                 child: Text(
                   item,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 14,
@@ -1088,7 +1160,7 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
                 ),
               );
             }).toList(),
-            onChanged: onChanged,
+            onChanged: items.isEmpty ? null : onChanged,
           ),
         ),
       ],

@@ -44,6 +44,23 @@ class StudentRegistrationDraft {
   });
 }
 
+/// Dropdown master data for student registration.
+class StudentRegistrationMasters {
+  final List<String> academicYears;
+  final List<String> schoolLevels;
+  final List<String> schoolGrades;
+  final List<String> schoolUnits;
+  final List<String> paymentMethods;
+
+  const StudentRegistrationMasters({
+    required this.academicYears,
+    required this.schoolLevels,
+    required this.schoolGrades,
+    required this.schoolUnits,
+    required this.paymentMethods,
+  });
+}
+
 /// Stores the latest student registration draft in memory.
 final studentRegistrationDraftProvider =
     StateProvider<StudentRegistrationDraft?>((ref) => null);
@@ -52,6 +69,30 @@ final studentRegistrationDraftProvider =
 final studentsRepositoryProvider = Provider<StudentsRepository>((ref) {
   return StudentsRepository();
 });
+
+/// Loads registration master data used in dropdowns.
+final studentRegistrationMastersProvider =
+    FutureProvider<StudentRegistrationMasters>((ref) async {
+      final repo = ref.read(studentsRepositoryProvider);
+      final currentUser = ref.read(currentUserProvider);
+      final userToken = currentUser?.userToken?.trim() ?? '';
+
+      final results = await Future.wait<List<String>>([
+        repo.getAcademicYears(authToken: userToken),
+        repo.getSchoolLevels(authToken: userToken),
+        repo.getSchoolGrades(authToken: userToken),
+        repo.getSchoolUnits(authToken: userToken),
+        repo.getPaymentMethods(authToken: userToken),
+      ]);
+
+      return StudentRegistrationMasters(
+        academicYears: results[0],
+        schoolLevels: results[1],
+        schoolGrades: results[2],
+        schoolUnits: results[3],
+        paymentMethods: results[4],
+      );
+    });
 
 /// Students provider with API-first loading and local mutation support.
 final studentsProvider = AsyncNotifierProvider<StudentsNotifier, List<Student>>(

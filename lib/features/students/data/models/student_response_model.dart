@@ -82,7 +82,7 @@ class StudentResponseModel {
         : _mapStatusCode(statusCode);
     final derivedSchoolLevel = _deriveSchoolLevel(
       normalizedSchoolName,
-      fallback: _pickString(json, const ['school_level', 'education_level']),
+      fallback: schoolLevel,
     );
 
     return Student(

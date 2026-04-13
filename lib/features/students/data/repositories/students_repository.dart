@@ -89,6 +89,105 @@ class StudentsRepository {
     }
   }
 
+  Future<List<String>> getSchoolUnits({required String authToken}) {
+    return _getMasterNames(
+      endpoint: ApiEndpoints.schoolUnits,
+      authToken: authToken,
+      fallbackError: 'Failed to load school units',
+    );
+  }
+
+  Future<List<String>> getSchoolLevels({required String authToken}) {
+    return _getMasterNames(
+      endpoint: ApiEndpoints.schoolLevels,
+      authToken: authToken,
+      fallbackError: 'Failed to load school levels',
+    );
+  }
+
+  Future<List<String>> getSchoolGrades({required String authToken}) {
+    return _getMasterNames(
+      endpoint: ApiEndpoints.schoolGrades,
+      authToken: authToken,
+      fallbackError: 'Failed to load school grades',
+    );
+  }
+
+  Future<List<String>> getAcademicYears({required String authToken}) {
+    return _getMasterNames(
+      endpoint: ApiEndpoints.currentAcademicYear,
+      authToken: authToken,
+      fallbackError: 'Failed to load academic years',
+    );
+  }
+
+  Future<List<String>> getPaymentMethods({required String authToken}) {
+    return _getMasterNames(
+      endpoint: ApiEndpoints.paymentMethodNonFree,
+      authToken: authToken,
+      fallbackError: 'Failed to load payment methods',
+      nameKey: 'paymentMethodName',
+    );
+  }
+
+  Future<List<String>> _getMasterNames({
+    required String endpoint,
+    required String authToken,
+    required String fallbackError,
+    String nameKey = 'name',
+  }) async {
+    try {
+      if (authToken.trim().isNotEmpty) {
+        _apiClient.setAuthToken(authToken);
+      }
+
+      final response = await _apiClient.post(
+        endpoint,
+        data: <String, dynamic>{
+          'search': <String, dynamic>{'status': ''},
+        },
+      );
+
+      if (response.data is! Map<String, dynamic>) {
+        throw StudentsException(fallbackError);
+      }
+
+      final payload = response.data as Map<String, dynamic>;
+      final statusText = payload['status']?.toString();
+      if (statusText != null && statusText != '1') {
+        throw StudentsException(_extractErrorMessage(payload));
+      }
+
+      final data = payload['data'];
+      if (data is! List) {
+        return <String>[];
+      }
+
+      return data
+          .whereType<Map<String, dynamic>>()
+          .map((item) => item[nameKey]?.toString().trim() ?? '')
+          .where((name) => name.isNotEmpty)
+          .toList();
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout) {
+        throw const StudentsException('Connection timeout. Please try again.');
+      }
+      if (e.type == DioExceptionType.connectionError) {
+        throw const StudentsException(
+          'No internet connection. Please check your network.',
+        );
+      }
+
+      final data = e.response?.data;
+      if (data is Map<String, dynamic>) {
+        throw StudentsException(_extractErrorMessage(data));
+      }
+
+      throw StudentsException('$fallbackError: ${e.message}');
+    }
+  }
+
   List<Student>? _extractStudentsFromPayload(Map<String, dynamic> payload) {
     final directData = payload['data'];
     final fromData = _extractStudentsFromAny(directData);

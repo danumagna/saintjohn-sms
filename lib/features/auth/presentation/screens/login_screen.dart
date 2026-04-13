@@ -18,7 +18,9 @@ import '../../providers/auth_provider.dart';
 
 /// Login screen with parent/student tabs.
 class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+  final bool showSignupSuccess;
+
+  const LoginScreen({super.key, this.showSignupSuccess = false});
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
@@ -44,6 +46,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _applyDevAutofillForIndex(_tabController.index);
+
+    if (widget.showSignupSuccess) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Sign up berhasil. Silakan login.'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      });
+    }
   }
 
   void _applyDevAutofillForIndex(int index) {

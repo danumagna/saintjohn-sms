@@ -59,7 +59,7 @@ class _SignupScreenState extends State<SignupScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final message = await _authRepository.signupParent(
+      await _authRepository.signupParent(
         nameParent: _nameController.text.trim(),
         emailParent: _emailController.text.trim(),
         phoneParent: _phoneController.text.trim(),
@@ -69,11 +69,101 @@ class _SignupScreenState extends State<SignupScreen> {
       if (!mounted) return;
       setState(() => _isLoading = false);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: AppColors.success),
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          return Dialog(
+            insetPadding: const EdgeInsets.symmetric(
+              horizontal: AppDimensions.paddingL,
+            ),
+            backgroundColor: Colors.transparent,
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(AppDimensions.radiusXL),
+                boxShadow: const [
+                  BoxShadow(
+                    color: AppColors.shadow,
+                    blurRadius: 24,
+                    offset: Offset(0, 10),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.all(AppDimensions.paddingL),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: const BoxDecoration(
+                      color: AppColors.successLight,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Iconsax.tick_circle,
+                      color: AppColors.success,
+                      size: 40,
+                    ),
+                  ),
+                  const SizedBox(height: AppDimensions.paddingM),
+                  const Text(
+                    'Sign up berhasil',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: AppDimensions.paddingS),
+                  const Text(
+                    'Akun berhasil dibuat. Silakan lanjut login untuk masuk ke aplikasi.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 14,
+                      height: 1.4,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: AppDimensions.paddingL),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.textOnPrimary,
+                        minimumSize: const Size.fromHeight(
+                          AppDimensions.buttonHeightM,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            AppDimensions.radiusM,
+                          ),
+                        ),
+                      ),
+                      onPressed: () {
+                        Navigator.of(dialogContext).pop();
+                        context.go(AppRoutes.login);
+                      },
+                      child: const Text(
+                        'Ke Halaman Login',
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       );
-
-      context.go(AppRoutes.login);
     } on AuthException catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);

@@ -30,5 +30,7 @@ class ApiEndpoints {
   static const String updatePassword =
       '/msisms006/user/update-employee-password';
   static const String updateStudentPassword = '/app003/update-student-password';
+  static const String parentProfile = '/app003/parent-profile';
+  static const String parentProfileUpdate = '/app003/parent-profile-update';
   static const String pageAccess = '/msisms006/user/page-access';
 }

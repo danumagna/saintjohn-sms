@@ -10,6 +10,7 @@ import '../../../../../core/constants/app_dimensions.dart';
 import '../../../../../routing/app_router.dart';
 import '../../../../../shared/data/dummy/dummy_users.dart';
 import '../../../../../shared/providers/shared_providers.dart';
+import '../../../../../shared/widgets/cards/menu_card.dart';
 
 /// Student dashboard screen.
 class StudentDashboardScreen extends ConsumerWidget {
@@ -136,78 +137,91 @@ class StudentDashboardScreen extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: AppDimensions.paddingM),
-              _buildSectionHeader(
-                title: l10n.dashboardSummarySectionTitle,
-                icon: Iconsax.chart,
-                color: AppColors.info,
-              ),
-              const SizedBox(height: AppDimensions.paddingS),
-              // Summary Section - 4+3 Grid (no scroll)
-              GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 4,
-                crossAxisSpacing: AppDimensions.paddingS,
-                mainAxisSpacing: AppDimensions.paddingS,
-                childAspectRatio: 1.2,
-                children: [
-                  _buildSummaryChip(
-                    icon: Iconsax.chart_2,
-                    iconColor: AppColors.secondary,
-                    value: '85.5',
-                    label: l10n.dashboardAverageScore,
-                    index: 0,
-                    onTap: () => context.push(AppRoutes.assessment),
-                  ),
-                  _buildSummaryChip(
-                    icon: Iconsax.calendar,
-                    iconColor: AppColors.schedule,
-                    value: '6',
-                    label: l10n.dashboardClassesToday,
-                    index: 1,
-                    onTap: () => context.push(AppRoutes.schedule),
-                  ),
-                  _buildSummaryChip(
-                    icon: Iconsax.calendar_2,
-                    iconColor: AppColors.warning,
-                    value: '3',
-                    label: l10n.menuAcademicCalendar,
-                    index: 2,
-                    onTap: () => context.push(AppRoutes.academicCalendar),
-                  ),
-                  _buildSummaryChip(
-                    icon: Iconsax.user_tick,
-                    iconColor: AppColors.success,
-                    value: '95%',
-                    label: l10n.dashboardAttendanceRate,
-                    index: 3,
-                    onTap: () => context.push(AppRoutes.attendanceReport),
-                  ),
-                  _buildSummaryChip(
-                    icon: Iconsax.note,
-                    iconColor: AppColors.success,
-                    value: '2',
-                    label: l10n.dashboardExamsToday,
-                    index: 4,
-                    onTap: () => context.push(AppRoutes.examSchedule),
-                  ),
-                  _buildSummaryChip(
-                    icon: Iconsax.clock,
-                    iconColor: AppColors.success,
-                    value: '4/5',
-                    label: l10n.dashboardSessionsAttended,
-                    index: 5,
-                    onTap: () => context.push(AppRoutes.sessionAttendance),
-                  ),
-                  _buildSummaryChip(
-                    icon: Iconsax.trend_up,
-                    iconColor: AppColors.success,
-                    value: '78%',
-                    label: l10n.dashboardOverallProgress,
-                    index: 6,
-                    onTap: () => context.push(AppRoutes.studentProgress),
-                  ),
-                ],
+              Container(
+                padding: const EdgeInsets.all(AppDimensions.paddingM),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(AppDimensions.radiusL),
+                  border: Border.all(color: AppColors.borderLight),
+                ),
+                child: Column(
+                  children: [
+                    _buildSectionHeader(
+                      title: l10n.dashboardSummarySectionTitle,
+                      icon: Iconsax.chart,
+                      color: AppColors.info,
+                    ),
+                    const SizedBox(height: AppDimensions.paddingS),
+                    // Summary Section - 4+3 Grid (no scroll)
+                    GridView.count(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisCount: 4,
+                      crossAxisSpacing: AppDimensions.paddingS,
+                      mainAxisSpacing: AppDimensions.paddingS,
+                      childAspectRatio: 1.2,
+                      children: [
+                        _buildSummaryChip(
+                          icon: Iconsax.chart_2,
+                          iconColor: AppColors.secondary,
+                          value: '85.5',
+                          label: l10n.dashboardAverageScore,
+                          index: 0,
+                          onTap: () => context.push(AppRoutes.assessment),
+                        ),
+                        _buildSummaryChip(
+                          icon: Iconsax.calendar,
+                          iconColor: AppColors.schedule,
+                          value: '6',
+                          label: l10n.dashboardClassesToday,
+                          index: 1,
+                          onTap: () => context.push(AppRoutes.schedule),
+                        ),
+                        _buildSummaryChip(
+                          icon: Iconsax.calendar_2,
+                          iconColor: AppColors.warning,
+                          value: '3',
+                          label: l10n.menuAcademicCalendar,
+                          index: 2,
+                          onTap: () => context.push(AppRoutes.academicCalendar),
+                        ),
+                        _buildSummaryChip(
+                          icon: Iconsax.user_tick,
+                          iconColor: AppColors.success,
+                          value: '95%',
+                          label: l10n.dashboardAttendanceRate,
+                          index: 3,
+                          onTap: () => context.push(AppRoutes.attendanceReport),
+                        ),
+                        _buildSummaryChip(
+                          icon: Iconsax.note,
+                          iconColor: AppColors.success,
+                          value: '2',
+                          label: l10n.dashboardExamsToday,
+                          index: 4,
+                          onTap: () => context.push(AppRoutes.examSchedule),
+                        ),
+                        _buildSummaryChip(
+                          icon: Iconsax.clock,
+                          iconColor: AppColors.success,
+                          value: '4/5',
+                          label: l10n.dashboardSessionsAttended,
+                          index: 5,
+                          onTap: () =>
+                              context.push(AppRoutes.sessionAttendance),
+                        ),
+                        _buildSummaryChip(
+                          icon: Iconsax.trend_up,
+                          iconColor: AppColors.success,
+                          value: '78%',
+                          label: l10n.dashboardOverallProgress,
+                          index: 6,
+                          onTap: () => context.push(AppRoutes.studentProgress),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: AppDimensions.paddingM),
               _buildSectionHeader(
@@ -225,28 +239,28 @@ class StudentDashboardScreen extends ConsumerWidget {
                   mainAxisSpacing: AppDimensions.paddingM,
                   childAspectRatio: 1.0,
                   children: [
-                    _buildMenuCard(
+                    MenuCard(
                       title: l10n.menuAssessment,
                       icon: Iconsax.chart_2,
                       iconColor: AppColors.secondary,
                       index: 0,
                       onTap: () => context.push(AppRoutes.assessment),
                     ),
-                    _buildMenuCard(
+                    MenuCard(
                       title: l10n.menuSchedule,
                       icon: Iconsax.calendar,
                       iconColor: AppColors.schedule,
                       index: 1,
                       onTap: () => context.push(AppRoutes.schedule),
                     ),
-                    _buildMenuCard(
+                    MenuCard(
                       title: l10n.menuAcademicCalendar,
                       icon: Iconsax.calendar_2,
                       iconColor: AppColors.warning,
                       index: 2,
                       onTap: () => context.push(AppRoutes.academicCalendar),
                     ),
-                    _buildMenuCard(
+                    MenuCard(
                       title: l10n.menuReports,
                       icon: Iconsax.document_text,
                       iconColor: AppColors.success,
@@ -443,78 +457,6 @@ class StudentDashboardScreen extends ConsumerWidget {
         .fadeIn(
           delay: Duration(milliseconds: 200 + (index * 50)),
           duration: const Duration(milliseconds: 300),
-        )
-        .scale(begin: const Offset(0.9, 0.9));
-  }
-
-  Widget _buildMenuCard({
-    required String title,
-    required IconData icon,
-    required Color iconColor,
-    required VoidCallback onTap,
-    required int index,
-  }) {
-    return Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(AppDimensions.radiusL),
-            child: Ink(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    AppColors.surface,
-                    iconColor.withValues(alpha: 0.05),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(AppDimensions.radiusL),
-                border: Border.all(color: iconColor.withValues(alpha: 0.2)),
-                boxShadow: [
-                  BoxShadow(
-                    color: iconColor.withValues(alpha: 0.15),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(AppDimensions.paddingM),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(AppDimensions.paddingM),
-                      decoration: BoxDecoration(
-                        color: iconColor.withValues(alpha: 0.12),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(icon, size: 28, color: iconColor),
-                    ),
-                    const SizedBox(height: AppDimensions.paddingM),
-                    Text(
-                      title,
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        )
-        .animate()
-        .fadeIn(
-          delay: Duration(milliseconds: 100 * index),
-          duration: const Duration(milliseconds: 350),
         )
         .scale(begin: const Offset(0.9, 0.9));
   }

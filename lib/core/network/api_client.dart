@@ -63,11 +63,13 @@ class ApiClient {
   /// GET request.
   Future<Response<T>> get<T>(
     String path, {
+    Object? data,
     Map<String, dynamic>? queryParameters,
     Options? options,
   }) async {
     return _dio.get<T>(
       path,
+      data: data,
       queryParameters: queryParameters,
       options: options,
     );

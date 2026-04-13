@@ -3,10 +3,13 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:intl/intl.dart';
 import 'package:saintjohn_sms_mobile/core/localization/generated/app_localizations.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
+import '../../../auth/data/repositories/auth_repository.dart';
+import '../../../auth/providers/auth_provider.dart';
 import '../../../../shared/providers/shared_providers.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/inputs/app_text_field.dart';
@@ -24,7 +27,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   late TextEditingController _nameController;
   late TextEditingController _emailController;
   late TextEditingController _phoneController;
+  late TextEditingController _birthDateController;
+  late TextEditingController _placeOfBirthController;
+  late TextEditingController _addressController;
+  late TextEditingController _nationalityController;
+  late TextEditingController _religionController;
+  DateTime? _selectedBirthDate;
   bool _isLoading = false;
+  bool _isFetchingProfile = false;
 
   @override
   void initState() {
@@ -33,6 +43,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _nameController = TextEditingController(text: user?.fullName ?? '');
     _emailController = TextEditingController(text: user?.email ?? '');
     _phoneController = TextEditingController(text: user?.phone ?? '');
+    _birthDateController = TextEditingController();
+    _placeOfBirthController = TextEditingController();
+    _addressController = TextEditingController();
+    _nationalityController = TextEditingController(text: 'indonesia');
+    _religionController = TextEditingController();
+
+    _prefillProfileFromApi();
   }
 
   @override
@@ -40,20 +57,115 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
+    _birthDateController.dispose();
+    _placeOfBirthController.dispose();
+    _addressController.dispose();
+    _nationalityController.dispose();
+    _religionController.dispose();
     super.dispose();
   }
 
+  Future<void> _selectBirthDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedBirthDate ?? DateTime(1990, 1, 1),
+      firstDate: DateTime(1940),
+      lastDate: DateTime.now(),
+    );
+
+    if (picked == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _selectedBirthDate = picked;
+      _birthDateController.text = DateFormat('yyyy-MM-dd').format(picked);
+    });
+  }
+
+  Future<void> _prefillProfileFromApi() async {
+    final user = ref.read(currentUserProvider);
+    if (user == null) {
+      return;
+    }
+
+    setState(() => _isFetchingProfile = true);
+
+    try {
+      final authRepository = ref.read(authRepositoryProvider);
+      final candidateIds = <String>{
+        user.id,
+        ...?user.childrenStudentId?.map((e) => e.toString()),
+      }.where((id) => id.trim().isNotEmpty).toList();
+
+      Map<String, String>? profile;
+      for (final id in candidateIds) {
+        try {
+          final result = await authRepository.getParentProfile(parentId: id);
+          profile = result;
+          break;
+        } on AuthException {
+          continue;
+        }
+      }
+
+      if (!mounted || profile == null) {
+        return;
+      }
+
+      _nameController.text = profile['name']!.isNotEmpty
+          ? profile['name']!
+          : _nameController.text;
+      _emailController.text = profile['email']!.isNotEmpty
+          ? profile['email']!
+          : _emailController.text;
+      _phoneController.text = profile['phone']!.isNotEmpty
+          ? profile['phone']!
+          : _phoneController.text;
+      _birthDateController.text = profile['dateOfBirth'] ?? '';
+      _placeOfBirthController.text = profile['placeOfBirth'] ?? '';
+      _addressController.text = profile['address'] ?? '';
+      _nationalityController.text =
+          (profile['nationality']?.isNotEmpty ?? false)
+          ? profile['nationality']!
+          : _nationalityController.text;
+      _religionController.text = profile['religion'] ?? '';
+
+      final dobText = _birthDateController.text.trim();
+      if (dobText.isNotEmpty) {
+        _selectedBirthDate = DateTime.tryParse(dobText);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isFetchingProfile = false);
+      }
+    }
+  }
+
   Future<void> _handleSave() async {
+    final l10n = AppLocalizations.of(context)!;
     final user = ref.read(currentUserProvider);
     if (!_formKey.currentState!.validate()) return;
     if (user == null) return;
 
     setState(() => _isLoading = true);
 
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 1));
+    try {
+      final authRepository = ref.read(authRepositoryProvider);
+      final message = await authRepository.updateParentProfile(
+        parentId: user.id,
+        parentName: _nameController.text.trim(),
+        parentEmail: _emailController.text.trim(),
+        parentPhone: _phoneController.text.trim(),
+        parentDateOfBirth: _birthDateController.text.trim(),
+        parentPlaceOfBirth: _placeOfBirthController.text.trim(),
+        parentAddress: _addressController.text.trim(),
+        parentNationality: _nationalityController.text.trim(),
+        parentReligion: _religionController.text.trim(),
+      );
 
-    if (mounted) {
+      if (!mounted) return;
+
       ref.read(currentUserProvider.notifier).state = user.copyWith(
         fullName: _nameController.text.trim(),
         email: _emailController.text.trim(),
@@ -63,9 +175,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       setState(() => _isLoading = false);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Profile updated successfully'),
-          backgroundColor: AppColors.success,
+        SnackBar(content: Text(message), backgroundColor: AppColors.success),
+      );
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message), backgroundColor: AppColors.error),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.commonError),
+          backgroundColor: AppColors.error,
         ),
       );
     }
@@ -122,6 +248,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (_isFetchingProfile) ...[
+                  const LinearProgressIndicator(minHeight: 3),
+                  const SizedBox(height: AppDimensions.paddingM),
+                ],
                 Center(
                       child: Container(
                         width: 100,
@@ -210,13 +340,111 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       duration: const Duration(milliseconds: 400),
                     )
                     .slideX(begin: -0.1, end: 0),
+                const SizedBox(height: AppDimensions.paddingM),
+                AppTextField(
+                      controller: _birthDateController,
+                      label: l10n.studentsBirthDate,
+                      hint: l10n.studentsBirthDateHint,
+                      readOnly: true,
+                      prefixIcon: Iconsax.calendar,
+                      onTap: _selectBirthDate,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return l10n.validationRequired;
+                        }
+                        return null;
+                      },
+                    )
+                    .animate()
+                    .fadeIn(
+                      delay: const Duration(milliseconds: 450),
+                      duration: const Duration(milliseconds: 400),
+                    )
+                    .slideX(begin: -0.1, end: 0),
+                const SizedBox(height: AppDimensions.paddingM),
+                AppTextField(
+                      controller: _placeOfBirthController,
+                      label: 'Place of Birth',
+                      hint: 'Enter place of birth',
+                      prefixIcon: Iconsax.location,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return l10n.validationRequired;
+                        }
+                        return null;
+                      },
+                    )
+                    .animate()
+                    .fadeIn(
+                      delay: const Duration(milliseconds: 500),
+                      duration: const Duration(milliseconds: 400),
+                    )
+                    .slideX(begin: -0.1, end: 0),
+                const SizedBox(height: AppDimensions.paddingM),
+                AppTextField(
+                      controller: _addressController,
+                      label: l10n.studentsAddress,
+                      hint: l10n.studentsAddressHint,
+                      prefixIcon: Iconsax.location,
+                      maxLines: 2,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return l10n.validationRequired;
+                        }
+                        return null;
+                      },
+                    )
+                    .animate()
+                    .fadeIn(
+                      delay: const Duration(milliseconds: 550),
+                      duration: const Duration(milliseconds: 400),
+                    )
+                    .slideX(begin: -0.1, end: 0),
+                const SizedBox(height: AppDimensions.paddingM),
+                AppTextField(
+                      controller: _nationalityController,
+                      label: 'Nationality',
+                      hint: 'Enter nationality',
+                      prefixIcon: Iconsax.global,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return l10n.validationRequired;
+                        }
+                        return null;
+                      },
+                    )
+                    .animate()
+                    .fadeIn(
+                      delay: const Duration(milliseconds: 600),
+                      duration: const Duration(milliseconds: 400),
+                    )
+                    .slideX(begin: -0.1, end: 0),
+                const SizedBox(height: AppDimensions.paddingM),
+                AppTextField(
+                      controller: _religionController,
+                      label: 'Religion',
+                      hint: 'Enter religion',
+                      prefixIcon: Iconsax.book,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return l10n.validationRequired;
+                        }
+                        return null;
+                      },
+                    )
+                    .animate()
+                    .fadeIn(
+                      delay: const Duration(milliseconds: 650),
+                      duration: const Duration(milliseconds: 400),
+                    )
+                    .slideX(begin: -0.1, end: 0),
                 const SizedBox(height: AppDimensions.paddingXXL),
                 PrimaryButton(
                   text: l10n.commonSave,
                   isLoading: _isLoading,
                   onPressed: _handleSave,
                 ).animate().fadeIn(
-                  delay: const Duration(milliseconds: 500),
+                  delay: const Duration(milliseconds: 700),
                   duration: const Duration(milliseconds: 400),
                 ),
               ],

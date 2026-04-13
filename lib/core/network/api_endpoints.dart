@@ -8,7 +8,9 @@ class ApiEndpoints {
   // Auth endpoints
   static const String login = '/msisms006/user/login';
   static const String signupParent = '/msisms002-parent/add_account_parent';
+  static const String checkEmailUnique = '/msisms002-parent/check_email_unique';
   static const String parentStudents = '/msisms002-parent/get-students';
+  static const String parentCandidates = '/msisms002-parent/get-candidates';
   static const String schoolUnits = '/msisms002-parent/get-school-unit';
   static const String schoolLevels = '/msisms002-parent/get-school-level';
   static const String schoolGrades = '/msisms002-parent/get-school-grade';
@@ -16,6 +18,9 @@ class ApiEndpoints {
       '/msisms002-parent/get-current-academic-year';
   static const String paymentMethodNonFree =
       '/msisms002-parent/get-payment-method-non-free';
+  static const String registrationPrice =
+      '/msisms002-parent/get-registration-price';
+  static const String addCandidate = '/msisms002-parent/add_candidate';
   static const String checkToken = '/msisms006/user/token';
   static const String checkTokenValid = '/msisms006/user/token-valid';
 
@@ -24,5 +29,6 @@ class ApiEndpoints {
   static const String sendValidation = '/msisms006/user/send-validation';
   static const String updatePassword =
       '/msisms006/user/update-employee-password';
+  static const String updateStudentPassword = '/app003/update-student-password';
   static const String pageAccess = '/msisms006/user/page-access';
 }

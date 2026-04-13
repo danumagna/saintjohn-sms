@@ -46,11 +46,11 @@ class StudentRegistrationDraft {
 
 /// Dropdown master data for student registration.
 class StudentRegistrationMasters {
-  final List<String> academicYears;
-  final List<String> schoolLevels;
-  final List<String> schoolGrades;
-  final List<String> schoolUnits;
-  final List<String> paymentMethods;
+  final List<MasterOption> academicYears;
+  final List<MasterOption> schoolLevels;
+  final List<MasterOption> schoolGrades;
+  final List<MasterOption> schoolUnits;
+  final List<MasterOption> paymentMethods;
 
   const StudentRegistrationMasters({
     required this.academicYears,
@@ -77,7 +77,7 @@ final studentRegistrationMastersProvider =
       final currentUser = ref.read(currentUserProvider);
       final userToken = currentUser?.userToken?.trim() ?? '';
 
-      final results = await Future.wait<List<String>>([
+      final results = await Future.wait<List<MasterOption>>([
         repo.getAcademicYears(authToken: userToken),
         repo.getSchoolLevels(authToken: userToken),
         repo.getSchoolGrades(authToken: userToken),
@@ -119,15 +119,28 @@ class StudentsNotifier extends AsyncNotifier<List<Student>> {
     final familyName = currentUser?.fullName.trim() ?? '';
     final nidParentUser = currentUser?.id.trim() ?? '';
 
-    if (userToken.isEmpty || familyName.isEmpty || nidParentUser.isEmpty) {
+    if (userToken.isEmpty || nidParentUser.isEmpty) {
       return List<Student>.from(DummyStudents.students);
     }
 
-    return repo.getParentStudents(
+    final students = await repo.getParentStudents(
       authToken: userToken,
       familyName: familyName,
       nidParentUser: nidParentUser,
     );
+
+    List<Student> candidates = <Student>[];
+    try {
+      candidates = await repo.getParentCandidates(
+        authToken: userToken,
+        familyName: familyName,
+        nidParentUser: nidParentUser,
+      );
+    } catch (_) {
+      // Keep student list available even if candidate endpoint fails.
+    }
+
+    return <Student>[...candidates, ...students];
   }
 
   void addStudent(Student student) {

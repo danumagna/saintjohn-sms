@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:saintjohn_sms_mobile/core/localization/generated/app_localizations.dart';
@@ -9,20 +10,37 @@ import '../../../../core/constants/app_dimensions.dart';
 import '../../../../routing/app_router.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/inputs/app_text_field.dart';
+import '../../data/repositories/auth_repository.dart';
+import '../../providers/auth_provider.dart';
 
 /// Forgot password screen.
-class ForgotPasswordScreen extends StatefulWidget {
-  const ForgotPasswordScreen({super.key});
+class ForgotPasswordScreen extends ConsumerStatefulWidget {
+  final String? loginType;
+
+  const ForgotPasswordScreen({super.key, this.loginType});
 
   @override
-  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+  ConsumerState<ForgotPasswordScreen> createState() =>
+      _ForgotPasswordScreenState();
 }
 
-class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
+class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   bool _isLoading = false;
   bool _emailSent = false;
+
+  String get _resolvedLoginType {
+    final rawLoginType = (widget.loginType ?? '').trim().toLowerCase();
+    if (rawLoginType == 'student' || rawLoginType == 'parent') {
+      return rawLoginType;
+    }
+    return 'parent';
+  }
+
+  String get _accountTypeLabel {
+    return _resolvedLoginType == 'student' ? 'Student' : 'Parent';
+  }
 
   @override
   void dispose() {
@@ -35,14 +53,33 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     setState(() => _isLoading = true);
 
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      final authRepository = ref.read(authRepositoryProvider);
+      await authRepository.sendForgotPasswordValidation(
+        email: _emailController.text.trim(),
+        loginType: _resolvedLoginType,
+      );
 
-    if (mounted) {
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
         _emailSent = true;
       });
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message), backgroundColor: AppColors.error),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Terjadi kesalahan. Silakan coba lagi.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
     }
   }
 
@@ -124,6 +161,39 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           ).animate().fadeIn(
             delay: const Duration(milliseconds: 200),
             duration: const Duration(milliseconds: 400),
+          ),
+          const SizedBox(height: AppDimensions.paddingM),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppDimensions.paddingM,
+              vertical: AppDimensions.paddingS,
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(AppDimensions.radiusCircular),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.2),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Iconsax.user, size: 14, color: AppColors.primary),
+                const SizedBox(width: AppDimensions.paddingXS),
+                Text(
+                  'Account Type: $_accountTypeLabel',
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ],
+            ),
+          ).animate().fadeIn(
+            delay: const Duration(milliseconds: 240),
+            duration: const Duration(milliseconds: 350),
           ),
           const SizedBox(height: AppDimensions.paddingXL),
           // Email Field

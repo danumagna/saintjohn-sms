@@ -7,8 +7,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
-import '../../../../shared/widgets/buttons/primary_button.dart';
-import '../../../../shared/widgets/inputs/app_text_field.dart';
 
 /// Contact Us screen with school contact information and message form.
 class ContactScreen extends StatefulWidget {
@@ -19,44 +17,19 @@ class ContactScreen extends StatefulWidget {
 }
 
 class _ContactScreenState extends State<ContactScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _subjectController = TextEditingController();
-  final _messageController = TextEditingController();
-  bool _isLoading = false;
-
-  @override
-  void dispose() {
-    _subjectController.dispose();
-    _messageController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _handleSend() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isLoading = true);
-
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 2));
-
-    if (mounted) {
-      setState(() => _isLoading = false);
-      _subjectController.clear();
-      _messageController.clear();
-
+  Future<void> _launchUrl(
+    String url, {
+    LaunchMode mode = LaunchMode.platformDefault,
+  }) async {
+    final uri = Uri.parse(url);
+    final isLaunched = await launchUrl(uri, mode: mode);
+    if (!isLaunched && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Message sent successfully!'),
-          backgroundColor: AppColors.success,
+          content: Text('Tidak dapat membuka tautan.'),
+          backgroundColor: AppColors.error,
         ),
       );
-    }
-  }
-
-  Future<void> _launchUrl(String url) async {
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
     }
   }
 
@@ -102,82 +75,25 @@ class _ContactScreenState extends State<ContactScreen> {
               icon: Iconsax.call,
               title: l10n.contactPhone,
               value: '+62 21 1234 5678',
-              onTap: () => _launchUrl('tel:+622112345678'),
+              onTap: () => _launchUrl(
+                'tel:+622112345678',
+                mode: LaunchMode.externalApplication,
+              ),
             ),
             _buildContactCard(
               icon: Iconsax.sms,
               title: l10n.contactEmail,
               value: 'info@saintjohnschool.edu',
-              onTap: () => _launchUrl('mailto:info@saintjohnschool.edu'),
+              onTap: () => _launchUrl(
+                'mailto:info@saintjohnschool.edu',
+                mode: LaunchMode.externalApplication,
+              ),
             ),
             _buildContactCard(
               icon: Iconsax.clock,
               title: l10n.contactOfficeHours,
               value: 'Monday - Friday\n06:30 - 18:00 WIB',
               onTap: null,
-            ),
-            const SizedBox(height: AppDimensions.paddingXL),
-            // Message Form
-            Text(
-              l10n.contactSendMessage,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ).animate().fadeIn(
-              delay: const Duration(milliseconds: 400),
-              duration: const Duration(milliseconds: 400),
-            ),
-            const SizedBox(height: AppDimensions.paddingM),
-            Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  AppTextField(
-                    controller: _subjectController,
-                    label: l10n.contactSubject,
-                    hint: l10n.contactSubjectHint,
-                    prefixIcon: Iconsax.edit,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return l10n.validationRequired;
-                      }
-                      return null;
-                    },
-                  ).animate().fadeIn(
-                    delay: const Duration(milliseconds: 500),
-                    duration: const Duration(milliseconds: 400),
-                  ),
-                  const SizedBox(height: AppDimensions.paddingM),
-                  AppTextField(
-                    controller: _messageController,
-                    label: l10n.contactMessage,
-                    hint: l10n.contactMessageHint,
-                    prefixIcon: Iconsax.message_text,
-                    maxLines: 5,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return l10n.validationRequired;
-                      }
-                      return null;
-                    },
-                  ).animate().fadeIn(
-                    delay: const Duration(milliseconds: 600),
-                    duration: const Duration(milliseconds: 400),
-                  ),
-                  const SizedBox(height: AppDimensions.paddingL),
-                  PrimaryButton(
-                    text: l10n.contactSendButton,
-                    isLoading: _isLoading,
-                    onPressed: _handleSend,
-                  ).animate().fadeIn(
-                    delay: const Duration(milliseconds: 700),
-                    duration: const Duration(milliseconds: 400),
-                  ),
-                ],
-              ),
             ),
           ],
         ),

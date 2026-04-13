@@ -8,13 +8,16 @@ import '../../features/auth/presentation/screens/signup_screen.dart';
 import '../../features/dashboard/parent/presentation/screens/parent_dashboard_screen.dart';
 import '../../features/dashboard/student/presentation/screens/student_dashboard_screen.dart';
 import '../../features/notifications/presentation/screens/notifications_screen.dart';
+import '../../features/settings/presentation/screens/change_password_screen.dart';
 import '../../features/settings/presentation/screens/profile_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../../features/splash/presentation/screens/splash_screen.dart';
 import '../../features/students/domain/entities/student.dart';
+import '../../features/students/domain/entities/registration_payment_args.dart';
 import '../../features/students/presentation/screens/student_detail_screen.dart';
 import '../../features/students/presentation/screens/student_list_screen.dart';
 import '../../features/students/presentation/screens/student_registration_screen.dart';
+import '../../features/students/presentation/screens/student_registration_payment_screen.dart';
 import '../../features/guide/presentation/screens/guide_screen.dart';
 import '../../features/contact/presentation/screens/contact_screen.dart';
 import '../../features/assessment/presentation/screens/assessment_screen.dart';
@@ -39,12 +42,15 @@ class AppRoutes {
   // Parent routes
   static const String parentDashboard = '/parent/dashboard';
   static const String studentRegistration = '/parent/students/registration';
+  static const String studentRegistrationPayment =
+      '/parent/students/registration/payment';
   static const String studentList = '/parent/students/list';
   static const String studentDetail = '/parent/students/detail';
   static const String guide = '/parent/guide';
   static const String contactUs = '/parent/contact';
   static const String parentSettings = '/parent/settings';
   static const String parentProfile = '/parent/profile';
+  static const String changePassword = '/settings/change-password';
 
   // Student routes
   static const String studentDashboard = '/student/dashboard';
@@ -89,7 +95,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.forgotPassword,
         name: 'forgotPassword',
-        builder: (context, state) => const ForgotPasswordScreen(),
+        builder: (context, state) {
+          final loginType = state.uri.queryParameters['loginType'];
+          return ForgotPasswordScreen(loginType: loginType);
+        },
       ),
 
       // Parent Shell
@@ -116,6 +125,22 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.studentRegistration,
         name: 'studentRegistration',
         builder: (context, state) => const StudentRegistrationScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.studentRegistrationPayment,
+        name: 'studentRegistrationPayment',
+        builder: (context, state) {
+          final args = state.extra;
+          if (args is! RegistrationPaymentArgs) {
+            return const Scaffold(
+              body: Center(
+                child: Text('Registration payment data is missing.'),
+              ),
+            );
+          }
+
+          return StudentRegistrationPaymentScreen(args: args);
+        },
       ),
       GoRoute(
         path: AppRoutes.studentList,
@@ -149,6 +174,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.parentProfile,
         name: 'parentProfile',
         builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.changePassword,
+        name: 'changePassword',
+        builder: (context, state) => const ChangePasswordScreen(),
       ),
 
       // Student Shell

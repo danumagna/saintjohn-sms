@@ -305,8 +305,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                           ],
                         ),
                         TextButton(
-                          onPressed: () =>
-                              context.push(AppRoutes.forgotPassword),
+                          onPressed: () {
+                            final loginType = _tabController.index == 1
+                                ? 'parent'
+                                : 'student';
+                            context.push(
+                              '${AppRoutes.forgotPassword}?loginType=$loginType',
+                            );
+                          },
                           child: Text(
                             l10n.authForgotPassword,
                             style: const TextStyle(

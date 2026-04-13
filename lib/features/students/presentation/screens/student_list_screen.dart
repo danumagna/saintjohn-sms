@@ -26,6 +26,8 @@ class StudentListScreen extends ConsumerStatefulWidget {
 class _StudentListScreenState extends ConsumerState<StudentListScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  StudentSortField _sortField = StudentSortField.name;
+  bool _isSortAscending = true;
 
   @override
   void dispose() {
@@ -39,6 +41,87 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
     });
   }
 
+  void _updateSortField(StudentSortField field) {
+    setState(() {
+      _sortField = field;
+    });
+  }
+
+  void _toggleSortDirection() {
+    setState(() {
+      _isSortAscending = !_isSortAscending;
+    });
+  }
+
+  List<Student> _sortStudents(List<Student> students) {
+    final sorted = List<Student>.from(students);
+
+    int compareText(String a, String b) {
+      return a.trim().toLowerCase().compareTo(b.trim().toLowerCase());
+    }
+
+    int compareStatus(String a, String b) {
+      const order = <String, int>{
+        'active': 0,
+        'gratis': 1,
+        'sudah diproses': 2,
+        'belum diproses': 3,
+        'menunggu': 4,
+        'diumumkan': 5,
+        'lulus': 6,
+        'negosiasi': 7,
+        'tidak lulus': 8,
+      };
+      final rankA = order[a.trim().toLowerCase()] ?? 99;
+      final rankB = order[b.trim().toLowerCase()] ?? 99;
+      if (rankA != rankB) {
+        return rankA.compareTo(rankB);
+      }
+      return compareText(a, b);
+    }
+
+    sorted.sort((a, b) {
+      final result = switch (_sortField) {
+        StudentSortField.name => compareText(a.name, b.name),
+        StudentSortField.birthDate => a.birthDate.compareTo(b.birthDate),
+        StudentSortField.schoolName => compareText(a.schoolName, b.schoolName),
+        StudentSortField.schoolLevel => compareText(
+          a.schoolLevel,
+          b.schoolLevel,
+        ),
+        StudentSortField.className => compareText(a.className, b.className),
+        StudentSortField.status => compareStatus(a.status, b.status),
+      };
+
+      return _isSortAscending ? result : -result;
+    });
+
+    return sorted;
+  }
+
+  String _sortFieldLabel(StudentSortField field) {
+    return switch (field) {
+      StudentSortField.name => 'Nama',
+      StudentSortField.birthDate => 'Tanggal lahir',
+      StudentSortField.schoolName => 'Nama Sekolah',
+      StudentSortField.schoolLevel => 'Tingkat Sekolah',
+      StudentSortField.className => 'Kelas',
+      StudentSortField.status => 'Status',
+    };
+  }
+
+  bool get _isAlphabeticSortField {
+    return _sortField == StudentSortField.name ||
+        _sortField == StudentSortField.schoolName ||
+        _sortField == StudentSortField.schoolLevel ||
+        _sortField == StudentSortField.className;
+  }
+
+  String get _sortDirectionSuffix {
+    if (!_isAlphabeticSortField) return '';
+    return _isSortAscending ? ' (A-Z)' : ' (Z-A)';
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -49,6 +132,43 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         title: Text(l10n.studentsListTitle),
+        actions: [
+          PopupMenuButton<StudentSortField>(
+            tooltip: 'Urutkan',
+            onSelected: _updateSortField,
+            itemBuilder: (context) {
+              return StudentSortField.values.map((field) {
+                final selected = field == _sortField;
+                return PopupMenuItem<StudentSortField>(
+                  value: field,
+                  child: Row(
+                    children: [
+                      Icon(
+                        selected ? Iconsax.tick_circle : Iconsax.sort,
+                        size: 16,
+                        color: selected
+                            ? AppColors.primary
+                            : AppColors.textSecondary,
+                      ),
+                      const SizedBox(width: AppDimensions.paddingS),
+                      Text(_sortFieldLabel(field)),
+                    ],
+                  ),
+                );
+              }).toList();
+            },
+            icon: const Icon(Iconsax.sort),
+          ),
+          IconButton(
+            tooltip: _isSortAscending
+                ? 'Ubah ke urutan menurun'
+                : 'Ubah ke urutan menaik',
+            onPressed: _toggleSortDirection,
+            icon: Icon(
+              _isSortAscending ? Iconsax.arrow_up_2 : Iconsax.arrow_down_1,
+            ),
+          ),
+        ],
         leading: IconButton(
           icon: const Icon(Iconsax.arrow_left),
           onPressed: () => context.pop(),
@@ -63,9 +183,53 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
               controller: _searchController,
               hint: l10n.studentsSearchHint,
               prefixIcon: Iconsax.search_normal,
+              textInputAction: TextInputAction.done,
               onChanged: _filterStudents,
             ),
           ).animate().fadeIn(duration: const Duration(milliseconds: 400)),
+          Padding(
+            padding: const EdgeInsets.only(
+              left: AppDimensions.paddingM,
+              right: AppDimensions.paddingM,
+              bottom: AppDimensions.paddingS,
+            ),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppDimensions.paddingS,
+                  vertical: AppDimensions.paddingXS,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(AppDimensions.radiusS),
+                  border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.18),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Iconsax.sort,
+                      size: 14,
+                      color: AppColors.primary,
+                    ),
+                    const SizedBox(width: AppDimensions.paddingXS),
+                    Text(
+                      'Sort: ${_sortFieldLabel(_sortField)}$_sortDirectionSuffix',
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ).animate().fadeIn(duration: const Duration(milliseconds: 450)),
           // Student List
           Expanded(
             child: studentsAsync.when(
@@ -79,8 +243,9 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                             ),
                           )
                           .toList();
+                final sortedStudents = _sortStudents(filteredStudents);
 
-                if (filteredStudents.isEmpty) {
+                if (sortedStudents.isEmpty) {
                   return _buildEmptyState(l10n);
                 }
 
@@ -94,9 +259,9 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppDimensions.paddingM,
                     ),
-                    itemCount: filteredStudents.length,
+                    itemCount: sortedStudents.length,
                     itemBuilder: (context, index) {
-                      final student = filteredStudents[index];
+                      final student = sortedStudents[index];
                       return _buildStudentCard(student);
                     },
                   ),
@@ -529,4 +694,13 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
       ),
     );
   }
+}
+
+enum StudentSortField {
+  name,
+  birthDate,
+  schoolName,
+  schoolLevel,
+  className,
+  status,
 }

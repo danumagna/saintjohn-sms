@@ -79,6 +79,13 @@ class AuthRepository {
     required String passwordParent,
   }) async {
     try {
+      await _ensureEmailIsUnique(
+        nameParent: nameParent,
+        emailParent: emailParent,
+        phoneParent: phoneParent,
+        passwordParent: passwordParent,
+      );
+
       final response = await _apiClient.post(
         ApiEndpoints.signupParent,
         data: <String, dynamic>{
@@ -130,6 +137,131 @@ class AuthRepository {
         }
       }
       throw AuthException('Sign up failed: ${e.message}');
+    } catch (e) {
+      if (e is AuthException) rethrow;
+      throw AuthException('An unexpected error occurred: $e');
+    }
+  }
+
+  Future<void> _ensureEmailIsUnique({
+    required String nameParent,
+    required String emailParent,
+    required String phoneParent,
+    required String passwordParent,
+  }) async {
+    try {
+      final response = await _apiClient.post(
+        ApiEndpoints.checkEmailUnique,
+        data: <String, dynamic>{
+          'nameParent': nameParent,
+          'emailParent': emailParent,
+          'phoneParent': phoneParent,
+          'passwordParent': passwordParent,
+        },
+      );
+
+      if (response.data is! Map<String, dynamic>) {
+        throw const AuthException('Invalid email validation response');
+      }
+
+      final payload = response.data as Map<String, dynamic>;
+      final status = payload['status']?.toString() ?? '0';
+      final data = payload['data'];
+
+      // Backend behavior: status=1 with data means the email already exists.
+      final emailAlreadyUsed = status == '1' && data is List && data.isNotEmpty;
+
+      if (emailAlreadyUsed) {
+        throw const AuthException('Email sudah terdaftar. Gunakan email lain.');
+      }
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout) {
+        throw const AuthException('Connection timeout. Please try again.');
+      }
+      if (e.type == DioExceptionType.connectionError) {
+        throw const AuthException(
+          'No internet connection. Please check your network.',
+        );
+      }
+
+      final data = e.response?.data;
+      if (data is Map<String, dynamic>) {
+        final message = data['message'] as Map<String, dynamic>?;
+        final errorMsg = message?['errmsg'] as String?;
+        if (errorMsg != null && errorMsg.isNotEmpty) {
+          throw AuthException(errorMsg);
+        }
+      }
+
+      throw AuthException('Email validation failed: ${e.message}');
+    }
+  }
+
+  /// Send forgot password validation email.
+  Future<String> sendForgotPasswordValidation({
+    required String email,
+    required String loginType,
+  }) async {
+    try {
+      final response = await _apiClient.post(
+        ApiEndpoints.sendValidation,
+        data: <String, dynamic>{'email': email, 'login_type': loginType},
+      );
+
+      if (response.data is! Map<String, dynamic>) {
+        throw const AuthException('Invalid server response');
+      }
+
+      final payload = response.data as Map<String, dynamic>;
+      final status = payload['status']?.toString();
+      final message = payload['message'];
+
+      if (status != '1') {
+        if (message is Map<String, dynamic>) {
+          final errorMsg =
+              message['errmsg']?.toString() ??
+              message['msg']?.toString() ??
+              message['message']?.toString();
+          if (errorMsg != null && errorMsg.isNotEmpty) {
+            throw AuthException(errorMsg);
+          }
+        }
+        throw const AuthException('Failed to send reset password email');
+      }
+
+      if (message is Map<String, dynamic>) {
+        final successMsg = message['msg']?.toString();
+        if (successMsg != null && successMsg.isNotEmpty) {
+          return successMsg;
+        }
+      }
+
+      return 'Reset password email has been sent';
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout) {
+        throw const AuthException('Connection timeout. Please try again.');
+      }
+      if (e.type == DioExceptionType.connectionError) {
+        throw const AuthException(
+          'No internet connection. Please check your network.',
+        );
+      }
+
+      final data = e.response?.data;
+      if (data is Map<String, dynamic>) {
+        final message = data['message'] as Map<String, dynamic>?;
+        final errorMsg =
+            message?['errmsg']?.toString() ??
+            message?['msg']?.toString() ??
+            message?['message']?.toString();
+        if (errorMsg != null && errorMsg.isNotEmpty) {
+          throw AuthException(errorMsg);
+        }
+      }
+
+      throw AuthException('Failed to send reset password email: ${e.message}');
     } catch (e) {
       if (e is AuthException) rethrow;
       throw AuthException('An unexpected error occurred: $e');

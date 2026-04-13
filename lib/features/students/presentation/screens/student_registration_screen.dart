@@ -4,14 +4,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:intl/intl.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:saintjohn_sms_mobile/core/localization/generated/app_localizations.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
+import '../../../../routing/app_router.dart';
 import '../../../../shared/providers/shared_providers.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/inputs/app_text_field.dart';
-import '../../domain/entities/student.dart';
+import '../../domain/entities/registration_payment_args.dart';
+import '../../data/repositories/students_repository.dart';
 import '../../providers/students_provider.dart';
 
 /// Student registration screen for adding new students.
@@ -40,28 +44,36 @@ class _StudentRegistrationScreenState
 
   DateTime? _selectedBirthDate;
 
-  String _selectedAcademicYear = '';
+  int? _selectedAcademicYearId;
   String _selectedGender = 'Laki - Laki';
-  String _selectedSchoolLevel = '';
-  String _selectedClass = '';
-  String _selectedSchool = '';
-  String _selectedPaymentMethod = '';
+  int? _selectedSchoolLevelId;
+  int? _selectedClassId;
+  int? _selectedSchoolId;
+  int? _selectedPaymentMethodId;
 
   final List<String> _genderOptions = ['Laki - Laki', 'Perempuan'];
 
-  List<String> get _academicYearOptions {
-    final year = DateTime.now().year;
-    return ['$year/${year + 1}', '${year + 1}/${year + 2}'];
+  int? _effectiveMasterSelection({
+    required int? currentId,
+    required List<MasterOption> options,
+  }) {
+    if (currentId != null && options.any((item) => item.id == currentId)) {
+      return currentId;
+    }
+    return options.isNotEmpty ? options.first.id : null;
   }
 
-  String _effectiveSelection({
-    required String currentValue,
-    required List<String> options,
-  }) {
-    if (options.contains(currentValue)) {
-      return currentValue;
+  MasterOption? _findById(List<MasterOption> options, int? id) {
+    if (id == null) {
+      return null;
     }
-    return options.isNotEmpty ? options.first : '';
+
+    for (final option in options) {
+      if (option.id == id) {
+        return option;
+      }
+    }
+    return null;
   }
 
   String _schoolLevelKeyFor(String value) {
@@ -106,12 +118,6 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
 ''';
 
   @override
-  void initState() {
-    super.initState();
-    _selectedAcademicYear = _academicYearOptions.first;
-  }
-
-  @override
   void dispose() {
     _scrollController.dispose();
     _familyCardNumberController.dispose();
@@ -123,24 +129,29 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
   }
 
   void _syncClassAndSchoolSelection({
-    required List<String> allClassOptions,
-    required List<String> allSchoolOptions,
+    required List<MasterOption> allClassOptions,
+    required List<MasterOption> allSchoolOptions,
+    required String selectedLevel,
   }) {
-    final classes = _classOptionsForLevel(allClassOptions);
-    final schools = _schoolOptionsForLevel(allSchoolOptions);
+    final classes = _classOptionsForLevel(
+      allClassOptions,
+      selectedLevel: selectedLevel,
+    );
+    final schools = _schoolOptionsForLevel(
+      allSchoolOptions,
+      selectedLevel: selectedLevel,
+    );
 
-    _selectedClass = classes.isNotEmpty ? classes.first : '';
-    _selectedSchool = schools.isNotEmpty ? schools.first : '';
+    _selectedClassId = classes.isNotEmpty ? classes.first.id : null;
+    _selectedSchoolId = schools.isNotEmpty ? schools.first.id : null;
   }
 
-  List<String> _classOptionsForLevel(
-    List<String> options, {
+  List<MasterOption> _classOptionsForLevel(
+    List<MasterOption> options, {
     String? selectedLevel,
   }) {
-    final key = _schoolLevelKeyFor(
-      selectedLevel ?? _selectedSchoolLevel,
-    ).toLowerCase();
-    return options.where((item) => _isClassMatchLevel(item, key)).toList();
+    final key = _schoolLevelKeyFor(selectedLevel ?? '').toLowerCase();
+    return options.where((item) => _isClassMatchLevel(item.name, key)).toList();
   }
 
   bool _isClassMatchLevel(String className, String levelKey) {
@@ -174,17 +185,38 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
     return false;
   }
 
-  List<String> _schoolOptionsForLevel(
-    List<String> options, {
+  List<MasterOption> _schoolOptionsForLevel(
+    List<MasterOption> options, {
     String? selectedLevel,
   }) {
-    final key = _schoolLevelKeyFor(
-      selectedLevel ?? _selectedSchoolLevel,
-    ).toLowerCase();
-    return options.where((item) {
-      final normalized = item.toLowerCase();
-      return normalized.startsWith(key);
-    }).toList();
+    final key = _schoolLevelKeyFor(selectedLevel ?? '').toLowerCase();
+    return options.where((item) => _isSchoolMatchLevel(item, key)).toList();
+  }
+
+  bool _isSchoolMatchLevel(MasterOption school, String levelKey) {
+    final normalizedName = school.name.toLowerCase();
+    if (normalizedName.startsWith(levelKey)) {
+      return true;
+    }
+
+    final normalizedCode = (school.code ?? '').toUpperCase();
+    if (levelKey == 'kb') {
+      return normalizedCode.contains('UNITKB');
+    }
+    if (levelKey == 'tk') {
+      return normalizedCode.contains('UNITTK');
+    }
+    if (levelKey == 'sd') {
+      return normalizedCode.contains('UNITSD');
+    }
+    if (levelKey == 'smp') {
+      return normalizedCode.contains('UNITSMP');
+    }
+    if (levelKey == 'sma') {
+      return normalizedCode.contains('UNITSMA');
+    }
+
+    return false;
   }
 
   Future<void> _selectBirthDate() async {
@@ -269,16 +301,24 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
     if (!_formKey.currentState!.validate()) return;
 
     final masters = ref.read(studentRegistrationMastersProvider).asData?.value;
-    final academicYearOptions = masters?.academicYears ?? const <String>[];
-    final schoolLevelOptions = masters?.schoolLevels ?? const <String>[];
-    final classSourceOptions = masters?.schoolGrades ?? const <String>[];
-    final schoolSourceOptions = masters?.schoolUnits ?? const <String>[];
-    final paymentMethodOptions = masters?.paymentMethods ?? const <String>[];
+    final academicYearOptions =
+        masters?.academicYears ?? const <MasterOption>[];
+    final schoolLevelOptions = masters?.schoolLevels ?? const <MasterOption>[];
+    final classSourceOptions = masters?.schoolGrades ?? const <MasterOption>[];
+    final schoolSourceOptions = masters?.schoolUnits ?? const <MasterOption>[];
+    final paymentMethodOptions =
+        masters?.paymentMethods ?? const <MasterOption>[];
 
-    final effectiveSchoolLevel = _effectiveSelection(
-      currentValue: _selectedSchoolLevel,
+    final effectiveSchoolLevelId = _effectiveMasterSelection(
+      currentId: _selectedSchoolLevelId,
       options: schoolLevelOptions,
     );
+    final effectiveSchoolLevelOption = _findById(
+      schoolLevelOptions,
+      effectiveSchoolLevelId,
+    );
+    final effectiveSchoolLevel = effectiveSchoolLevelOption?.name ?? '';
+
     final effectiveClassOptions = _classOptionsForLevel(
       classSourceOptions,
       selectedLevel: effectiveSchoolLevel,
@@ -288,28 +328,51 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
       selectedLevel: effectiveSchoolLevel,
     );
 
-    final effectiveAcademicYear = _effectiveSelection(
-      currentValue: _selectedAcademicYear,
+    final effectiveAcademicYearId = _effectiveMasterSelection(
+      currentId: _selectedAcademicYearId,
       options: academicYearOptions,
     );
-    final effectiveClass = _effectiveSelection(
-      currentValue: _selectedClass,
+    final effectiveClassId = _effectiveMasterSelection(
+      currentId: _selectedClassId,
       options: effectiveClassOptions,
     );
-    final effectiveSchool = _effectiveSelection(
-      currentValue: _selectedSchool,
+    final effectiveSchoolId = _effectiveMasterSelection(
+      currentId: _selectedSchoolId,
       options: effectiveSchoolOptions,
     );
-    final effectivePaymentMethod = _effectiveSelection(
-      currentValue: _selectedPaymentMethod,
+    final effectivePaymentMethodId = _effectiveMasterSelection(
+      currentId: _selectedPaymentMethodId,
       options: paymentMethodOptions,
     );
 
-    if (effectiveAcademicYear.isEmpty ||
+    final effectiveAcademicYear = _findById(
+      academicYearOptions,
+      effectiveAcademicYearId,
+    );
+    final effectiveClass = _findById(effectiveClassOptions, effectiveClassId);
+    final effectiveSchool = _findById(
+      effectiveSchoolOptions,
+      effectiveSchoolId,
+    );
+    final effectivePaymentMethod = _findById(
+      paymentMethodOptions,
+      effectivePaymentMethodId,
+    );
+
+    if (effectiveAcademicYear == null ||
+        effectiveAcademicYear.id == null ||
+        effectiveSchoolLevelOption == null ||
+        effectiveSchoolLevelOption.id == null ||
+        effectiveClass == null ||
+        effectiveClass.id == null ||
+        effectiveSchool == null ||
+        effectiveSchool.id == null ||
+        effectivePaymentMethod == null ||
+        effectivePaymentMethod.id == null ||
         effectiveSchoolLevel.isEmpty ||
-        effectiveClass.isEmpty ||
-        effectiveSchool.isEmpty ||
-        effectivePaymentMethod.isEmpty) {
+        effectiveClass.name.isEmpty ||
+        effectiveSchool.name.isEmpty ||
+        effectivePaymentMethod.name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Data master dari API belum tersedia.'),
@@ -319,48 +382,50 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
       return;
     }
 
+    final currentUser = ref.read(currentUserProvider);
+    final effectiveBirthDate = _selectedBirthDate ?? DateTime.now();
+    final payload = <String, dynamic>{
+      'action': 'Regfee',
+      'createBy': currentUser?.fullName ?? '-',
+      'dateOfBirth': DateFormat('yyyy-MM-dd').format(effectiveBirthDate),
+      'emailParent': currentUser?.email ?? '-',
+      'familyCardNumber': _familyCardNumberController.text.trim(),
+      'gender': _selectedGender.toLowerCase().contains('perempuan')
+          ? 'female'
+          : 'male',
+      'namaParent': currentUser?.fullName ?? '-',
+      'nidParentUser': int.tryParse(currentUser?.id ?? '') ?? 0,
+      'nik': _nikController.text.trim(),
+      'paymentMethod': effectivePaymentMethod.id,
+      'phoneNumber': _parentPhoneController.text.trim(),
+      'schoolGrade': effectiveClass.id,
+      'schoolLevel': effectiveSchoolLevelOption.id,
+      'schoolUnit': effectiveSchool.id,
+      'schoolYear': effectiveAcademicYear.id,
+      'studentFeePayment': 0,
+      'vSchoolGrade': effectiveClass.name,
+      'vSchoolLevel': effectiveSchoolLevelOption.name,
+      'virtualAccountNumber': null,
+    };
+
     setState(() => _isLoading = true);
+    if (!mounted) return;
 
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 2));
-
-    if (mounted) {
-      final now = DateTime.now();
-      final createdId = 'std_${now.millisecondsSinceEpoch}';
-      final currentUser = ref.read(currentUserProvider);
-      final student = Student(
-        id: createdId,
-        fullName: _fullNameController.text.trim(),
-        academicYear: effectiveAcademicYear,
-        familyCardNumber: _familyCardNumberController.text.trim(),
-        nik: _nikController.text.trim(),
-        nisn: createdId,
-        schoolLevel: effectiveSchoolLevel,
-        grade: effectiveSchoolLevel,
-        className: effectiveClass,
-        schoolName: effectiveSchool,
-        gender: _selectedGender,
-        birthDate: _selectedBirthDate ?? now,
-        birthPlace: '-',
-        address: '-',
-        parentPhoneNumber: _parentPhoneController.text.trim(),
-        paymentMethod: effectivePaymentMethod,
-        parentId: currentUser?.id ?? 'parent_local',
-        avatarUrl: null,
-        createdAt: now,
-      );
-
-      ref.read(studentsProvider.notifier).addStudent(student);
-      setState(() => _isLoading = false);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Pendaftaran berhasil dikirim.'),
-          backgroundColor: AppColors.success,
+    try {
+      await context.push(
+        AppRoutes.studentRegistrationPayment,
+        extra: RegistrationPaymentArgs(
+          fullName: _fullNameController.text.trim(),
+          schoolLevel: effectiveSchoolLevel,
+          className: effectiveClass.name,
+          schoolName: effectiveSchool.name,
+          registrationPricePayload: payload,
         ),
       );
-
-      context.pop();
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -869,17 +934,29 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
   Widget _buildRegistrationForm(AppLocalizations l10n) {
     final mastersAsync = ref.watch(studentRegistrationMastersProvider);
     final masters = mastersAsync.asData?.value;
+    final isMastersLoading = mastersAsync.isLoading && masters == null;
 
-    final academicYearOptions = masters?.academicYears ?? const <String>[];
-    final schoolLevelOptions = masters?.schoolLevels ?? const <String>[];
-    final classSourceOptions = masters?.schoolGrades ?? const <String>[];
-    final schoolSourceOptions = masters?.schoolUnits ?? const <String>[];
-    final paymentMethodOptions = masters?.paymentMethods ?? const <String>[];
+    final academicYearOptions =
+        masters?.academicYears ?? const <MasterOption>[];
+    final schoolLevelOptions = masters?.schoolLevels ?? const <MasterOption>[];
+    final classSourceOptions = masters?.schoolGrades ?? const <MasterOption>[];
+    final schoolSourceOptions = masters?.schoolUnits ?? const <MasterOption>[];
+    final paymentMethodOptions =
+        masters?.paymentMethods ?? const <MasterOption>[];
 
-    final selectedSchoolLevel = _effectiveSelection(
-      currentValue: _selectedSchoolLevel,
+    final selectedAcademicYearId = _effectiveMasterSelection(
+      currentId: _selectedAcademicYearId,
+      options: academicYearOptions,
+    );
+    final selectedSchoolLevelId = _effectiveMasterSelection(
+      currentId: _selectedSchoolLevelId,
       options: schoolLevelOptions,
     );
+    final selectedSchoolLevelOption = _findById(
+      schoolLevelOptions,
+      selectedSchoolLevelId,
+    );
+    final selectedSchoolLevel = selectedSchoolLevelOption?.name ?? '';
 
     final classOptions = _classOptionsForLevel(
       classSourceOptions,
@@ -890,20 +967,16 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
       selectedLevel: selectedSchoolLevel,
     );
 
-    final selectedAcademicYear = _effectiveSelection(
-      currentValue: _selectedAcademicYear,
-      options: academicYearOptions,
-    );
-    final selectedClass = _effectiveSelection(
-      currentValue: _selectedClass,
+    final selectedClassId = _effectiveMasterSelection(
+      currentId: _selectedClassId,
       options: classOptions,
     );
-    final selectedSchool = _effectiveSelection(
-      currentValue: _selectedSchool,
+    final selectedSchoolId = _effectiveMasterSelection(
+      currentId: _selectedSchoolId,
       options: schoolOptions,
     );
-    final selectedPaymentMethod = _effectiveSelection(
-      currentValue: _selectedPaymentMethod,
+    final selectedPaymentMethodId = _effectiveMasterSelection(
+      currentId: _selectedPaymentMethodId,
       options: paymentMethodOptions,
     );
 
@@ -919,18 +992,20 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
                 padding: EdgeInsets.only(bottom: AppDimensions.paddingM),
                 child: LinearProgressIndicator(minHeight: 4),
               ),
-            _buildDropdown(
-              label: 'Tahun ajaran',
-              value: selectedAcademicYear,
-              items: academicYearOptions,
-              onChanged: (value) {
-                if (value == null) return;
-                setState(() {
-                  _selectedAcademicYear = value;
-                });
-              },
-              icon: Iconsax.calendar,
-            ),
+            if (isMastersLoading)
+              _buildMasterDropdownSkeleton(label: 'Tahun ajaran')
+            else
+              _buildMasterDropdown(
+                label: 'Tahun ajaran',
+                value: selectedAcademicYearId,
+                items: academicYearOptions,
+                onChanged: (value) {
+                  setState(() {
+                    _selectedAcademicYearId = value;
+                  });
+                },
+                icon: Iconsax.calendar,
+              ),
             const SizedBox(height: AppDimensions.paddingM),
             AppTextField(
               controller: _familyCardNumberController,
@@ -1011,7 +1086,7 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
               },
             ),
             const SizedBox(height: AppDimensions.paddingM),
-            _buildDropdown(
+            _buildStringDropdown(
               label: 'Jenis Kelamin',
               value: _selectedGender,
               items: _genderOptions,
@@ -1024,48 +1099,59 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
               icon: Iconsax.user,
             ),
             const SizedBox(height: AppDimensions.paddingM),
-            _buildDropdown(
-              label: 'Tingkat Sekolah',
-              value: selectedSchoolLevel.isEmpty ? null : selectedSchoolLevel,
-              items: schoolLevelOptions,
-              onChanged: (value) {
-                if (value == null) return;
-                setState(() {
-                  _selectedSchoolLevel = value;
-                  _syncClassAndSchoolSelection(
-                    allClassOptions: classSourceOptions,
-                    allSchoolOptions: schoolSourceOptions,
-                  );
-                });
-              },
-              icon: Iconsax.buildings,
-            ),
+            if (isMastersLoading)
+              _buildMasterDropdownSkeleton(label: 'Tingkat Sekolah')
+            else
+              _buildMasterDropdown(
+                label: 'Tingkat Sekolah',
+                value: selectedSchoolLevelId,
+                items: schoolLevelOptions,
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() {
+                    _selectedSchoolLevelId = value;
+
+                    final selectedOption = _findById(schoolLevelOptions, value);
+
+                    _syncClassAndSchoolSelection(
+                      allClassOptions: classSourceOptions,
+                      allSchoolOptions: schoolSourceOptions,
+                      selectedLevel: selectedOption?.name ?? '',
+                    );
+                  });
+                },
+                icon: Iconsax.buildings,
+              ),
             const SizedBox(height: AppDimensions.paddingM),
-            _buildDropdown(
-              label: 'Kelas',
-              value: selectedClass.isEmpty ? null : selectedClass,
-              items: classOptions,
-              onChanged: (value) {
-                if (value == null) return;
-                setState(() {
-                  _selectedClass = value;
-                });
-              },
-              icon: Iconsax.teacher,
-            ),
+            if (isMastersLoading)
+              _buildMasterDropdownSkeleton(label: 'Kelas')
+            else
+              _buildMasterDropdown(
+                label: 'Kelas',
+                value: selectedClassId,
+                items: classOptions,
+                onChanged: (value) {
+                  setState(() {
+                    _selectedClassId = value;
+                  });
+                },
+                icon: Iconsax.teacher,
+              ),
             const SizedBox(height: AppDimensions.paddingM),
-            _buildDropdown(
-              label: 'Sekolah',
-              value: selectedSchool.isEmpty ? null : selectedSchool,
-              items: schoolOptions,
-              onChanged: (value) {
-                if (value == null) return;
-                setState(() {
-                  _selectedSchool = value;
-                });
-              },
-              icon: Iconsax.building,
-            ),
+            if (isMastersLoading)
+              _buildMasterDropdownSkeleton(label: 'Sekolah')
+            else
+              _buildMasterDropdown(
+                label: 'Sekolah',
+                value: selectedSchoolId,
+                items: schoolOptions,
+                onChanged: (value) {
+                  setState(() {
+                    _selectedSchoolId = value;
+                  });
+                },
+                icon: Iconsax.building,
+              ),
             const SizedBox(height: AppDimensions.paddingM),
             AppTextField(
               controller: _parentPhoneController,
@@ -1081,23 +1167,23 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
               },
             ),
             const SizedBox(height: AppDimensions.paddingM),
-            _buildDropdown(
-              label: 'Metode Pembayaran',
-              value: selectedPaymentMethod.isEmpty
-                  ? null
-                  : selectedPaymentMethod,
-              items: paymentMethodOptions,
-              onChanged: (value) {
-                if (value == null) return;
-                setState(() {
-                  _selectedPaymentMethod = value;
-                });
-              },
-              icon: Iconsax.wallet,
-            ),
+            if (isMastersLoading)
+              _buildMasterDropdownSkeleton(label: 'Metode Pembayaran')
+            else
+              _buildMasterDropdown(
+                label: 'Metode Pembayaran',
+                value: selectedPaymentMethodId,
+                items: paymentMethodOptions,
+                onChanged: (value) {
+                  setState(() {
+                    _selectedPaymentMethodId = value;
+                  });
+                },
+                icon: Iconsax.wallet,
+              ),
             const SizedBox(height: AppDimensions.paddingXXL),
             PrimaryButton(
-              text: 'Selesai',
+              text: 'Next',
               isLoading: _isLoading,
               onPressed: _submitRegistration,
             ),
@@ -1107,7 +1193,67 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
     ).animate().fadeIn(duration: const Duration(milliseconds: 250));
   }
 
-  Widget _buildDropdown({
+  Widget _buildMasterDropdown({
+    required String label,
+    required int? value,
+    required List<MasterOption> items,
+    required ValueChanged<int?> onChanged,
+    required IconData icon,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: AppDimensions.paddingS),
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppDimensions.radiusM),
+            border: Border.all(color: AppColors.borderLight),
+          ),
+          child: DropdownButtonFormField<int>(
+            initialValue: value,
+            isExpanded: true,
+            decoration: InputDecoration(
+              prefixIcon: Icon(icon, color: AppColors.textSecondary),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: AppDimensions.paddingM,
+                vertical: AppDimensions.paddingM,
+              ),
+            ),
+            icon: const Icon(Iconsax.arrow_down_1, size: 20),
+            items: items.map((item) {
+              return DropdownMenuItem<int>(
+                value: item.id,
+                child: Text(
+                  item.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 14,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              );
+            }).toList(),
+            onChanged: items.isEmpty ? null : onChanged,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStringDropdown({
     required String label,
     required String? value,
     required List<String> items,
@@ -1161,6 +1307,36 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
               );
             }).toList(),
             onChanged: items.isEmpty ? null : onChanged,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMasterDropdownSkeleton({required String label}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: AppDimensions.paddingS),
+        Shimmer.fromColors(
+          baseColor: AppColors.borderLight,
+          highlightColor: AppColors.surface,
+          child: Container(
+            height: 52,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(AppDimensions.radiusM),
+              border: Border.all(color: AppColors.borderLight),
+            ),
           ),
         ),
       ],

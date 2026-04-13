@@ -26,7 +26,6 @@ class SettingsScreen extends ConsumerWidget {
         (userType == UserType.parent
             ? DummyUsers.getDefaultParent()
             : DummyUsers.getDefaultStudent());
-    final currentLocale = ref.watch(localeProvider);
     final notificationsEnabled = ref.watch(notificationsEnabledProvider);
 
     return Scaffold(
@@ -141,27 +140,11 @@ class SettingsScreen extends ConsumerWidget {
               const SizedBox(height: AppDimensions.paddingXL),
               // Menu Items
               MenuListItem(
-                title: l10n.settingsMyProfile,
-                icon: Iconsax.user,
-                onTap: () {
-                  if (userType == UserType.parent) {
-                    context.push(AppRoutes.parentProfile);
-                  } else {
-                    context.push(AppRoutes.studentProfile);
-                  }
-                },
+                title: 'Change Password',
+                icon: Iconsax.lock,
+                onTap: () => context.push(AppRoutes.changePassword),
               ).animate().fadeIn(
                 delay: const Duration(milliseconds: 200),
-                duration: const Duration(milliseconds: 400),
-              ),
-              MenuListItem(
-                title: l10n.settingsLanguage,
-                subtitle: currentLocale == 'en' ? 'English' : 'Indonesia',
-                icon: Iconsax.language_square,
-                onTap: () =>
-                    _showLanguageDialog(context, ref, l10n, currentLocale),
-              ).animate().fadeIn(
-                delay: const Duration(milliseconds: 300),
                 duration: const Duration(milliseconds: 400),
               ),
               MenuListItem(
@@ -187,7 +170,7 @@ class SettingsScreen extends ConsumerWidget {
                       !notificationsEnabled;
                 },
               ).animate().fadeIn(
-                delay: const Duration(milliseconds: 400),
+                delay: const Duration(milliseconds: 450),
                 duration: const Duration(milliseconds: 400),
               ),
               MenuListItem(
@@ -215,76 +198,6 @@ class SettingsScreen extends ConsumerWidget {
           ),
         ),
       ),
-    );
-  }
-
-  void _showLanguageDialog(
-    BuildContext context,
-    WidgetRef ref,
-    AppLocalizations l10n,
-    String currentLocale,
-  ) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppDimensions.radiusL),
-        ),
-        title: Text(
-          l10n.settingsLanguage,
-          style: const TextStyle(
-            fontFamily: 'Poppins',
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildLanguageOption(
-              context: context,
-              ref: ref,
-              title: 'English',
-              value: 'en',
-              currentValue: currentLocale,
-            ),
-            _buildLanguageOption(
-              context: context,
-              ref: ref,
-              title: 'Indonesia',
-              value: 'id',
-              currentValue: currentLocale,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLanguageOption({
-    required BuildContext context,
-    required WidgetRef ref,
-    required String title,
-    required String value,
-    required String currentValue,
-  }) {
-    final isSelected = value == currentValue;
-
-    return ListTile(
-      title: Text(
-        title,
-        style: TextStyle(
-          fontFamily: 'Inter',
-          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-          color: isSelected ? AppColors.primary : AppColors.textPrimary,
-        ),
-      ),
-      trailing: isSelected
-          ? const Icon(Iconsax.tick_circle, color: AppColors.primary)
-          : null,
-      onTap: () {
-        ref.read(localeProvider.notifier).state = value;
-        Navigator.pop(context);
-      },
     );
   }
 

@@ -9,17 +9,21 @@ class StudentResponseModel {
 
     final id = _pickString(json, const [
       'idStudent',
+      'idCandidate',
+      'idRegistrasi',
       'id',
       'student_id',
       'id_student',
     ]);
     final fullName = _pickString(json, const [
+      'fullName',
       'full_name',
       'fullname',
       'name',
       'student_name',
     ]);
     final academicYear = _pickString(json, const [
+      'schoolYear',
       'academic_year',
       'school_year',
       'tahun_ajaran',
@@ -32,18 +36,25 @@ class StudentResponseModel {
     final nik = _pickString(json, const ['nik', 'id_number']);
     final nisn = _pickString(json, const ['nisn', 'student_nisn']);
     final schoolLevel = _pickString(json, const [
+      'schoolLevel',
       'school_level',
       'education_level',
       'jenjang',
     ]);
-    final grade = _pickString(json, const ['grade', 'kelas_tingkat']);
+    final grade = _pickString(json, const [
+      'schoolGrade',
+      'grade',
+      'kelas_tingkat',
+    ]);
     final className = _pickString(json, const [
+      'schoolGrade',
       'vclassName',
       'class_name',
       'classroom',
       'kelas',
     ]);
     final schoolName = _pickString(json, const [
+      'schoolUnit',
       'schoolName',
       'school_name',
       'nama_sekolah',
@@ -67,7 +78,12 @@ class StudentResponseModel {
     ]);
     final parentId = _pickString(json, const ['parent_id', 'id_parent']);
     final statusCode = _pickString(json, const ['nstatusStudent']);
-    final status = _pickString(json, const ['status', 'student_status']);
+    final status = _pickString(json, const [
+      'statusRegistrationFee',
+      'testInformation',
+      'status',
+      'student_status',
+    ]);
     final avatarUrl = _pickNullableString(json, const [
       'vstudentProfileFolderPublicFilePath',
       'avatar_url',

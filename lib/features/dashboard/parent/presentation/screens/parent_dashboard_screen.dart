@@ -10,6 +10,7 @@ import '../../../../../core/constants/app_dimensions.dart';
 import '../../../../../routing/app_router.dart';
 import '../../../../../shared/data/dummy/dummy_users.dart';
 import '../../../../../shared/providers/shared_providers.dart';
+import '../../../../../shared/widgets/avatar/user_profile_avatar.dart';
 import '../../../../../shared/widgets/cards/menu_card.dart';
 
 /// Parent dashboard screen.
@@ -21,6 +22,9 @@ class ParentDashboardScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
     final user =
         ref.watch(currentUserProvider) ?? DummyUsers.getDefaultParent();
+    final firstName = user.fullName.trim().isEmpty
+        ? l10n.authLoginAsParent
+        : user.fullName.trim().split(RegExp(r'\s+')).first;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -34,26 +38,15 @@ class ParentDashboardScreen extends ConsumerWidget {
                 child: Row(
                   children: [
                     // Avatar
-                    Container(
-                          width: 50,
-                          height: 50,
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.1),
-                            shape: BoxShape.circle,
+                    UserProfileAvatar(
+                          user: user,
+                          size: 50,
+                          backgroundColor: AppColors.primary.withValues(
+                            alpha: 0.1,
                           ),
-                          child: Center(
-                            child: Text(
-                              user.fullName.isNotEmpty
-                                  ? user.fullName[0].toUpperCase()
-                                  : 'P',
-                              style: const TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ),
+                          textColor: AppColors.primary,
+                          fontSize: 20,
+                          fallbackLetter: 'P',
                         )
                         .animate()
                         .fadeIn(duration: const Duration(milliseconds: 400))
@@ -65,9 +58,7 @@ class ParentDashboardScreen extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                                l10n.dashboardWelcome(
-                                  user.fullName.split(' ').first,
-                                ),
+                                l10n.dashboardWelcome(firstName),
                                 style: const TextStyle(
                                   fontFamily: 'Poppins',
                                   fontSize: 18,

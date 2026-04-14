@@ -10,6 +10,8 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../routing/app_router.dart';
 import '../../../../shared/providers/shared_providers.dart';
+import '../../../../shared/utils/current_user_photo_loader.dart';
+import '../../../../shared/utils/current_user_session_storage.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/inputs/app_text_field.dart';
 import '../../data/models/login_request.dart';
@@ -32,7 +34,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _rememberMe = false;
+  bool _rememberMe = true;
   bool _isLoading = false;
 
   // Dev autofill credentials (from API test data)
@@ -46,6 +48,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _applyDevAutofillForIndex(_tabController.index);
+    _hydrateRememberMe();
 
     if (widget.showSignupSuccess) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -58,6 +61,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         );
       });
     }
+  }
+
+  Future<void> _hydrateRememberMe() async {
+    final saved = await readRememberMeEnabled();
+    if (!mounted) {
+      return;
+    }
+    setState(() => _rememberMe = saved);
   }
 
   void _applyDevAutofillForIndex(int index) {
@@ -94,6 +105,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       final user = await authRepository.login(request);
 
       ref.read(currentUserProvider.notifier).state = user;
+      await preloadCurrentUserPhoto(ref: ref, user: user);
+      await saveRememberMeEnabled(_rememberMe);
+      if (_rememberMe) {
+        await saveCurrentUserSession(user);
+      } else {
+        await clearCurrentUserSession();
+      }
 
       if (mounted) {
         setState(() => _isLoading = false);

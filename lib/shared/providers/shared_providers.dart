@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/auth/domain/entities/user.dart';
@@ -7,6 +9,9 @@ enum UserType { parent, student }
 
 /// Current user provider.
 final currentUserProvider = StateProvider<User?>((ref) => null);
+
+/// Preloaded profile photo bytes for current user.
+final currentUserPhotoBytesProvider = StateProvider<Uint8List?>((ref) => null);
 
 /// User type provider based on current user.
 final userTypeProvider = Provider<UserType?>((ref) {

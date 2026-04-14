@@ -1,32 +1,104 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_assets.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/constants/app_durations.dart';
+import '../../../auth/providers/auth_provider.dart';
 import '../../../../routing/app_router.dart';
+import '../../../../shared/providers/shared_providers.dart';
+import '../../../../shared/utils/current_user_photo_loader.dart';
+import '../../../../shared/utils/current_user_session_storage.dart';
 
 /// Splash screen with animated logo and app name.
-class SplashScreen extends StatefulWidget {
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _navigateToLogin();
+    _bootstrapSession();
   }
 
-  Future<void> _navigateToLogin() async {
+  Future<void> _bootstrapSession() async {
+    final rememberMeFuture = readRememberMeEnabled();
+    final restoreUserFuture = readStoredCurrentUser();
     await Future.delayed(AppDurations.splash);
-    if (mounted) {
+
+    if (!mounted) {
+      return;
+    }
+
+    final rememberMeEnabled = await rememberMeFuture;
+
+    if (!mounted) {
+      return;
+    }
+
+    if (!rememberMeEnabled) {
+      await clearCurrentUserSession();
+
+      if (!mounted) {
+        return;
+      }
+
+      ref.read(currentUserProvider.notifier).state = null;
+      ref.read(currentUserPhotoBytesProvider.notifier).state = null;
       context.go(AppRoutes.login);
+      return;
+    }
+
+    var user = ref.read(currentUserProvider);
+    user ??= await restoreUserFuture;
+
+    if (!mounted) {
+      return;
+    }
+
+    if (user == null) {
+      context.go(AppRoutes.login);
+      return;
+    }
+
+    final token = user.userToken?.trim() ?? '';
+    final isExpired =
+        user.userTokenExpiry != null &&
+        user.userTokenExpiry!.isBefore(DateTime.now());
+
+    if (token.isEmpty || isExpired) {
+      await clearCurrentUserSession();
+
+      if (!mounted) {
+        return;
+      }
+
+      ref.read(currentUserProvider.notifier).state = null;
+      ref.read(currentUserPhotoBytesProvider.notifier).state = null;
+      context.go(AppRoutes.login);
+      return;
+    }
+
+    ref.read(currentUserProvider.notifier).state = user;
+    ref.read(authRepositoryProvider).setAuthToken(token);
+
+    await preloadCurrentUserPhoto(ref: ref, user: user);
+
+    if (!mounted) {
+      return;
+    }
+
+    if (user.role == 'parent') {
+      context.go(AppRoutes.parentDashboard);
+    } else {
+      context.go(AppRoutes.studentDashboard);
     }
   }
 

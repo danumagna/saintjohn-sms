@@ -77,10 +77,25 @@ class _StudentRegistrationScreenState
   }
 
   String _schoolLevelKeyFor(String value) {
-    if (value.startsWith('KB')) {
+    final normalized = value.trim().toUpperCase();
+
+    if (normalized.contains('SMP')) {
+      return 'SMP';
+    }
+    if (normalized.contains('SMA')) {
+      return 'SMA';
+    }
+    if (normalized.contains('SD')) {
+      return 'SD';
+    }
+    if (normalized.contains('TK')) {
+      return 'TK';
+    }
+    if (normalized.contains('KB')) {
       return 'KB';
     }
-    return value;
+
+    return normalized;
   }
 
   static const String _infoStepTwoContent = '''
@@ -190,30 +205,98 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
     String? selectedLevel,
   }) {
     final key = _schoolLevelKeyFor(selectedLevel ?? '').toLowerCase();
-    return options.where((item) => _isSchoolMatchLevel(item, key)).toList();
+    final sanitizedOptions = options.where((item) {
+      final displayName = item.name.trim();
+      if (displayName.isEmpty || _isNumericOnly(displayName)) {
+        return false;
+      }
+
+      return true;
+    }).toList();
+
+    final filteredByLevel = sanitizedOptions.where((item) {
+      if (!_isSchoolMatchLevel(item, key)) {
+        return false;
+      }
+
+      if (key == 'tk') {
+        final normalizedName = item.name.trim().toLowerCase();
+        final code = (item.code ?? '').toUpperCase();
+        final hasTkName =
+            _containsLevelFamily(normalizedName, 'tk') ||
+            normalizedName.startsWith('taman kanak');
+        final hasTkCode = code.contains('UNITTK');
+
+        return hasTkName || hasTkCode;
+      }
+
+      return true;
+    }).toList();
+
+    if (key == 'tk') {
+      return filteredByLevel;
+    }
+
+    // Non-TK fallback: if backend naming is unusual, avoid empty dropdown.
+    return filteredByLevel.isNotEmpty ? filteredByLevel : sanitizedOptions;
+  }
+
+  bool _isNumericOnly(String value) {
+    return RegExp(r'^\d+$').hasMatch(value.trim());
+  }
+
+  bool _containsLevelKeyword(String text, String keyword) {
+    final normalized = text.toLowerCase();
+    return RegExp('\\b$keyword\\b').hasMatch(normalized);
+  }
+
+  bool _containsLevelFamily(String text, String keyword) {
+    final normalized = text.toLowerCase();
+    return _containsLevelKeyword(normalized, keyword) ||
+        RegExp('\\b$keyword[a-z]*\\b').hasMatch(normalized);
   }
 
   bool _isSchoolMatchLevel(MasterOption school, String levelKey) {
     final normalizedName = school.name.toLowerCase();
-    if (normalizedName.startsWith(levelKey)) {
-      return true;
+    final normalizedCode = (school.code ?? '').toUpperCase();
+
+    if (levelKey == 'kb') {
+      return normalizedCode.contains('UNITKB') ||
+          _containsLevelKeyword(normalizedName, 'kb') ||
+          normalizedName.contains('kelompok bermain');
     }
 
-    final normalizedCode = (school.code ?? '').toUpperCase();
-    if (levelKey == 'kb') {
-      return normalizedCode.contains('UNITKB');
-    }
     if (levelKey == 'tk') {
-      return normalizedCode.contains('UNITTK');
+      final fromCode = normalizedCode.contains('UNITTK');
+      final fromName =
+          _containsLevelFamily(normalizedName, 'tk') ||
+          normalizedName.startsWith('taman kanak');
+
+      // Guard: reject rows that also look like other levels (common bad master rows).
+      final hasOtherLevel =
+          _containsLevelFamily(normalizedName, 'sd') ||
+          _containsLevelFamily(normalizedName, 'smp') ||
+          _containsLevelFamily(normalizedName, 'sma') ||
+          normalizedCode.contains('UNITSD') ||
+          normalizedCode.contains('UNITSMP') ||
+          normalizedCode.contains('UNITSMA');
+
+      return (fromCode || fromName) && !hasOtherLevel;
     }
+
     if (levelKey == 'sd') {
-      return normalizedCode.contains('UNITSD');
+      return normalizedCode.contains('UNITSD') ||
+          _containsLevelFamily(normalizedName, 'sd');
     }
+
     if (levelKey == 'smp') {
-      return normalizedCode.contains('UNITSMP');
+      return normalizedCode.contains('UNITSMP') ||
+          _containsLevelFamily(normalizedName, 'smp');
     }
+
     if (levelKey == 'sma') {
-      return normalizedCode.contains('UNITSMA');
+      return normalizedCode.contains('UNITSMA') ||
+          _containsLevelFamily(normalizedName, 'sma');
     }
 
     return false;
@@ -1200,6 +1283,10 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
     required ValueChanged<int?> onChanged,
     required IconData icon,
   }) {
+    final safeValue = value != null && items.any((item) => item.id == value)
+        ? value
+        : null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1220,7 +1307,7 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
             border: Border.all(color: AppColors.borderLight),
           ),
           child: DropdownButtonFormField<int>(
-            initialValue: value,
+            initialValue: safeValue,
             isExpanded: true,
             decoration: InputDecoration(
               prefixIcon: Icon(icon, color: AppColors.textSecondary),

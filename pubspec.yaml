@@ -48,9 +48,11 @@ dependencies:
 
   # Image Picker
   image_picker: ^1.1.2
+  flutter_image_compress: ^2.3.0
 
   # Network
   dio: ^5.8.0
+  http_parser: ^4.1.2
 
 dev_dependencies:
   flutter_test:

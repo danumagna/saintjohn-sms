@@ -222,48 +222,112 @@ class StudentsRepository {
     required String authToken,
     required Map<String, dynamic> payload,
   }) async {
-    try {
-      if (authToken.trim().isNotEmpty) {
-        _apiClient.setAuthToken(authToken);
-      }
+    if (authToken.trim().isNotEmpty) {
+      _apiClient.setAuthToken(authToken);
+    }
 
-      final response = await _apiClient.post(
-        ApiEndpoints.registrationPrice,
-        data: payload,
-      );
+    final attempts = _buildRegistrationPricePayloadAttempts(payload);
+    String? lastError;
 
-      if (response.data is! Map<String, dynamic>) {
-        throw const StudentsException('Invalid registration price response');
-      }
+    for (final attempt in attempts) {
+      try {
+        final response = await _apiClient.post(
+          ApiEndpoints.registrationPrice,
+          data: attempt,
+        );
 
-      final data = response.data as Map<String, dynamic>;
-      final statusText = data['status']?.toString();
-      if (statusText != null && statusText != '1') {
-        throw StudentsException(_extractErrorMessage(data));
-      }
-
-      final values = data['data'];
-      if (values is List && values.isNotEmpty) {
-        final first = values.first;
-        if (first is num) {
-          return first.toDouble();
+        if (response.data is! Map<String, dynamic>) {
+          lastError = 'Invalid registration price response';
+          continue;
         }
-        final parsed = double.tryParse(first.toString());
+
+        final data = response.data as Map<String, dynamic>;
+        final statusText = data['status']?.toString();
+        if (statusText != null && statusText != '1') {
+          lastError = _extractErrorMessage(data);
+          continue;
+        }
+
+        final price = _parseRegistrationPrice(data);
+        if (price != null) {
+          return price;
+        }
+
+        lastError = 'Registration price not found';
+      } on DioException catch (e) {
+        final data = e.response?.data;
+        if (data is Map<String, dynamic>) {
+          lastError = _extractErrorMessage(data);
+          continue;
+        }
+
+        lastError = 'Failed to load registration price: ${e.message}';
+      }
+    }
+
+    throw StudentsException(lastError ?? 'Failed to load registration price');
+  }
+
+  List<Map<String, dynamic>> _buildRegistrationPricePayloadAttempts(
+    Map<String, dynamic> payload,
+  ) {
+    final attempts = <Map<String, dynamic>>[];
+    final seen = <String>{};
+
+    void addAttempt(Map<String, dynamic> value) {
+      final key = value.toString();
+      if (seen.add(key)) {
+        attempts.add(value);
+      }
+    }
+
+    final base = Map<String, dynamic>.from(payload);
+    addAttempt(base);
+
+    final rawAction = (payload['action']?.toString() ?? '').trim();
+    final actionCandidates = <String>[
+      if (rawAction.isNotEmpty) rawAction,
+      'Regfee',
+      'RegFee',
+      '%RegFee%',
+      '%Regfee%',
+    ];
+
+    for (final action in actionCandidates) {
+      final attempt = Map<String, dynamic>.from(payload);
+      attempt['action'] = action;
+      addAttempt(attempt);
+    }
+
+    return attempts;
+  }
+
+  double? _parseRegistrationPrice(Map<String, dynamic> data) {
+    final values = data['data'];
+    if (values is! List || values.isEmpty) {
+      return null;
+    }
+
+    final first = values.first;
+    if (first is num) {
+      return first.toDouble();
+    }
+
+    if (first is Map<String, dynamic>) {
+      const amountKeys = <String>['amount', 'namount', 'price', 'value'];
+      for (final key in amountKeys) {
+        final raw = first[key];
+        if (raw is num) {
+          return raw.toDouble();
+        }
+        final parsed = double.tryParse(raw?.toString() ?? '');
         if (parsed != null) {
           return parsed;
         }
       }
-
-      throw const StudentsException('Registration price not found');
-    } on DioException catch (e) {
-      final data = e.response?.data;
-      if (data is Map<String, dynamic>) {
-        throw StudentsException(_extractErrorMessage(data));
-      }
-      throw StudentsException(
-        'Failed to load registration price: ${e.message}',
-      );
     }
+
+    return double.tryParse(first.toString());
   }
 
   Future<void> submitStudentRegistration({

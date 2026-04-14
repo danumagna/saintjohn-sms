@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
@@ -13,6 +15,14 @@ class AuthRepository {
 
   AuthRepository({ApiClient? apiClient})
     : _apiClient = apiClient ?? ApiClient();
+
+  /// Apply auth token for subsequent repository requests.
+  void setAuthToken(String token) {
+    if (token.trim().isEmpty) {
+      return;
+    }
+    _apiClient.setAuthToken(token);
+  }
 
   /// Login user.
   /// Returns [User] on success, throws [AuthException] on failure.
@@ -446,6 +456,160 @@ class AuthRepository {
     }
   }
 
+  /// Get student dashboard profile data.
+  Future<Map<String, String>> getStudentDashboardProfile({
+    required int studentRegistrationId,
+  }) async {
+    try {
+      final response = await _apiClient.get(
+        ApiEndpoints.dashboardStudentProfile,
+        queryParameters: <String, dynamic>{
+          'nstudentRegistrationId': studentRegistrationId,
+        },
+        data: <String, dynamic>{
+          'nstudentRegistrationId': studentRegistrationId,
+        },
+      );
+
+      final payload = response.data;
+      if (payload is! Map<String, dynamic>) {
+        throw const AuthException('Invalid server response');
+      }
+
+      final status = payload['status']?.toString() ?? '0';
+      if (status != '1') {
+        final message = _extractPayloadMessage(payload);
+        if (message != null && message.isNotEmpty) {
+          throw AuthException(message);
+        }
+        throw const AuthException('Failed to get student profile data');
+      }
+
+      final data = payload['data'];
+      if (data is! List ||
+          data.isEmpty ||
+          data.first is! Map<String, dynamic>) {
+        throw const AuthException('Student profile data not found');
+      }
+
+      final source = data.first as Map<String, dynamic>;
+
+      return <String, String>{
+        'photoUrl': _normalizeProfilePhotoUrl(
+          _readString(source, const [
+            'vstudentDashboardProfilePicture',
+            'profile_picture',
+          ]),
+        ),
+        'name': _readString(source, const [
+          'vstudentDashboardProfileName',
+          'vstudentProfileFullName',
+          'full_name',
+        ]),
+        'email': _readString(source, const [
+          'vstudentDashboardProfileEmail',
+          'email',
+        ]),
+        'className': _readString(source, const [
+          'vstudentDashboardProfileClassName',
+          'class_name',
+        ]),
+        'address': _readString(source, const [
+          'vstudentDashboardProfileAddress',
+          'vstudentDashboardProfileSchoolAddress',
+          'address',
+        ]),
+      };
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout) {
+        throw const AuthException('Connection timeout. Please try again.');
+      }
+      if (e.type == DioExceptionType.connectionError) {
+        throw const AuthException(
+          'No internet connection. Please check your network.',
+        );
+      }
+
+      final data = e.response?.data;
+      if (data is Map<String, dynamic>) {
+        final message = _extractPayloadMessage(data);
+        if (message != null && message.isNotEmpty) {
+          throw AuthException(message);
+        }
+      }
+
+      throw AuthException('Failed to get student profile data: ${e.message}');
+    } catch (e) {
+      if (e is AuthException) rethrow;
+      throw AuthException('An unexpected error occurred: $e');
+    }
+  }
+
+  /// Get parent profile photo as decoded bytes from Base64 API.
+  Future<Uint8List?> getParentProfilePhotoBytes({
+    required String parentId,
+    int imageIndex = 1,
+    int? cacheBust,
+  }) async {
+    try {
+      final response = await _apiClient.get(
+        '${ApiEndpoints.parentProfileFile}/$parentId/$imageIndex',
+        queryParameters: cacheBust == null
+            ? null
+            : <String, dynamic>{'t': cacheBust},
+      );
+
+      final payload = response.data;
+      if (payload is! Map<String, dynamic>) {
+        return null;
+      }
+
+      final status = payload['status']?.toString();
+      if (status != '1') {
+        return null;
+      }
+
+      final message = payload['message'];
+      if (message is! Map<String, dynamic>) {
+        return null;
+      }
+
+      final encoded = message['file']?.toString().trim() ?? '';
+      if (encoded.isEmpty) {
+        return null;
+      }
+
+      final normalized = _normalizeBase64Payload(encoded);
+      return base64Decode(normalized);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        return null;
+      }
+
+      if (!kReleaseMode) {
+        debugPrint('[parent_profile_photo] failed: ${e.message}');
+      }
+      return null;
+    } catch (e) {
+      if (!kReleaseMode) {
+        debugPrint('[parent_profile_photo] decode failed: $e');
+      }
+      return null;
+    }
+  }
+
+  String _normalizeBase64Payload(String value) {
+    final trimmed = value.trim();
+    final dataMarker = 'base64,';
+    final markerIndex = trimmed.indexOf(dataMarker);
+    final raw = markerIndex >= 0
+        ? trimmed.substring(markerIndex + dataMarker.length)
+        : trimmed;
+
+    return raw.replaceAll(RegExp(r'\s+'), '');
+  }
+
   Future<Map<String, String>?> _tryGetParentProfileFallback(
     String parentId,
   ) async {
@@ -474,6 +638,8 @@ class AuthRepository {
   }
 
   Map<String, String> _buildParentProfileMap(Map<String, dynamic> source) {
+    final rawPhotoUrl = _readPhotoUrlLoose(source);
+
     return <String, String>{
       'name': _readStringLoose(
         source,
@@ -532,7 +698,116 @@ class AuthRepository {
         const ['vparentProfileParentReligion', 'parent_religion', 'religion'],
         const ['religion', 'agama'],
       ),
+      'photoUrl': _normalizeProfilePhotoUrl(rawPhotoUrl),
     };
+  }
+
+  String _normalizeProfilePhotoUrl(String rawPhotoUrl) {
+    final value = rawPhotoUrl.trim().replaceAll('\\', '/');
+    if (value.isEmpty) {
+      return '';
+    }
+
+    final lower = value.toLowerCase();
+    if (lower.startsWith('http://') || lower.startsWith('https://')) {
+      return value;
+    }
+
+    if (lower.startsWith('//')) {
+      return 'https:$value';
+    }
+
+    final baseUri = Uri.parse('${ApiEndpoints.baseUrl}/');
+    final resolved = value.startsWith('/')
+        ? Uri.parse(ApiEndpoints.baseUrl).resolve(value)
+        : baseUri.resolve(value);
+    return resolved.toString();
+  }
+
+  String _readPhotoUrlLoose(Map<String, dynamic> source) {
+    const exactKeys = <String>[
+      'vparentDashboardProfilePicture',
+      'vparentProfileParentPicture',
+      'vparentProfileParentPhoto',
+      'parent_profile_picture',
+      'profile_picture',
+      'photoUrl',
+      'photo',
+      'avatar',
+    ];
+    const containsKeys = <String>[
+      'profilepicture',
+      'profilephoto',
+      'photourl',
+      'photo',
+      'avatar',
+      'picture',
+      'image',
+    ];
+
+    String fromDynamic(dynamic value) {
+      if (value == null) {
+        return '';
+      }
+
+      if (value is String) {
+        return value.trim();
+      }
+
+      if (value is Map<String, dynamic>) {
+        final nested = _readString(value, const [
+          'url',
+          'href',
+          'src',
+          'path',
+          'file',
+          'fileUrl',
+          'filePath',
+          'value',
+        ]);
+        return nested.trim();
+      }
+
+      if (value is List && value.isNotEmpty) {
+        return fromDynamic(value.first);
+      }
+
+      return value.toString().trim();
+    }
+
+    for (final key in exactKeys) {
+      if (source.containsKey(key)) {
+        final found = fromDynamic(source[key]);
+        if (found.isNotEmpty) {
+          return found;
+        }
+      }
+    }
+
+    for (final entry in source.entries) {
+      final normalizedKey = entry.key.toLowerCase().replaceAll(
+        RegExp(r'[^a-z0-9]'),
+        '',
+      );
+      final isMatch = containsKeys.any((pattern) {
+        final normalizedPattern = pattern.toLowerCase().replaceAll(
+          RegExp(r'[^a-z0-9]'),
+          '',
+        );
+        return normalizedKey.contains(normalizedPattern);
+      });
+
+      if (!isMatch) {
+        continue;
+      }
+
+      final found = fromDynamic(entry.value);
+      if (found.isNotEmpty) {
+        return found;
+      }
+    }
+
+    return '';
   }
 
   Map<String, dynamic>? _extractParentProfileSource(
@@ -694,67 +969,38 @@ class AuthRepository {
     required String parentAddress,
     required String parentNationality,
     required String parentReligion,
+    String? profilePhotoPath,
   }) async {
     try {
-      final response = await _apiClient.post(
+      final basePayload = <String, dynamic>{
+        'vparentProfileParentName': parentName,
+        'vparentProfileParentEmail': parentEmail,
+        'vparentProfileParentPhone': parentPhone,
+        'dparentProfileParentDateOfBirth': parentDateOfBirth,
+        'vparentProfileParentPlaceOfBirth': parentPlaceOfBirth,
+        'vparentProfileParentAddress': parentAddress,
+        'vparentProfileParentNationality': parentNationality,
+        'vparentProfileParentReligion': parentReligion,
+      };
+      final updateResponse = await _apiClient.post(
         '${ApiEndpoints.parentProfileUpdate}/$parentId',
-        data: <String, dynamic>{
-          'vparentProfileParentName': parentName,
-          'vparentProfileParentEmail': parentEmail,
-          'vparentProfileParentPhone': parentPhone,
-          'dparentProfileParentDateOfBirth': parentDateOfBirth,
-          'vparentProfileParentPlaceOfBirth': parentPlaceOfBirth,
-          'vparentProfileParentAddress': parentAddress,
-          'vparentProfileParentNationality': parentNationality,
-          'vparentProfileParentReligion': parentReligion,
-        },
+        data: basePayload,
+        options: Options(contentType: Headers.jsonContentType),
+      );
+      final updateMessage = _parseUpdateProfileResponse(updateResponse.data);
+
+      final hasPhoto =
+          profilePhotoPath != null && profilePhotoPath.trim().isNotEmpty;
+      if (!hasPhoto) {
+        return updateMessage;
+      }
+
+      final uploadMessage = await _uploadParentProfilePhoto(
+        parentId: parentId,
+        profilePhotoPath: profilePhotoPath,
       );
 
-      final payload = response.data;
-      if (payload is! Map<String, dynamic>) {
-        throw const AuthException('Invalid server response');
-      }
-
-      final nestedStatus =
-          (payload['message'] as Map<String, dynamic>?)?['userServiceStatus'];
-      if (nestedStatus is Map<String, dynamic>) {
-        final status = nestedStatus['status']?.toString();
-        if (status == '1') {
-          final nestedMessage = nestedStatus['message'];
-          if (nestedMessage is Map<String, dynamic>) {
-            final success =
-                nestedMessage['msg']?.toString() ??
-                nestedMessage['message']?.toString();
-            if (success != null && success.isNotEmpty) {
-              return success;
-            }
-          }
-          return 'Profile updated successfully';
-        }
-
-        final nestedMessage = nestedStatus['message'];
-        if (nestedMessage is Map<String, dynamic>) {
-          final error =
-              nestedMessage['errmsg']?.toString() ??
-              nestedMessage['msg']?.toString() ??
-              nestedMessage['message']?.toString();
-          if (error != null && error.isNotEmpty) {
-            throw AuthException(error);
-          }
-        }
-      }
-
-      final status = payload['status']?.toString();
-      if (status == '1') {
-        return 'Profile updated successfully';
-      }
-
-      final message = _extractPayloadMessage(payload);
-      if (message != null && message.isNotEmpty) {
-        throw AuthException(message);
-      }
-
-      throw const AuthException('Failed to update profile');
+      return uploadMessage.isNotEmpty ? uploadMessage : updateMessage;
     } on DioException catch (e) {
       if (e.type == DioExceptionType.connectionTimeout ||
           e.type == DioExceptionType.receiveTimeout) {
@@ -763,6 +1009,35 @@ class AuthRepository {
       if (e.type == DioExceptionType.connectionError) {
         throw const AuthException(
           'No internet connection. Please check your network.',
+        );
+      }
+
+      if (e.response?.statusCode == 404) {
+        throw const AuthException('Endpoint profile tidak ditemukan (404).');
+      }
+
+      if (e.response?.statusCode == 405) {
+        throw const AuthException(
+          'Method update/upload profile tidak diizinkan (405).',
+        );
+      }
+
+      if (e.response?.statusCode == 500) {
+        throw const AuthException(
+          'Server error (500) saat upload foto profile. Silakan coba lagi.',
+        );
+      }
+
+      if (e.response?.statusCode == 400) {
+        final data = e.response?.data;
+        if (data is Map<String, dynamic>) {
+          final message = _extractPayloadMessage(data);
+          if (message != null && message.isNotEmpty) {
+            throw AuthException(message);
+          }
+        }
+        throw const AuthException(
+          'Request upload foto tidak valid (400). Periksa format file dan coba lagi.',
         );
       }
 
@@ -779,6 +1054,131 @@ class AuthRepository {
       if (e is AuthException) rethrow;
       throw AuthException('An unexpected error occurred: $e');
     }
+  }
+
+  Future<String> _uploadParentProfilePhoto({
+    required String parentId,
+    required String profilePhotoPath,
+  }) async {
+    final originalFileName = profilePhotoPath.split(RegExp(r'[\\/]')).last;
+    final extension = originalFileName.contains('.')
+        ? '.${originalFileName.split('.').last}'
+        : '';
+    final safeFileName =
+        'profile_${parentId}_${DateTime.now().millisecondsSinceEpoch}$extension';
+
+    Response<dynamic> response;
+    final commonParams = <String, dynamic>{
+      'nid': parentId,
+      'vfileCategory': '1',
+      'nfileSharing': '1',
+    };
+
+    try {
+      final formData = FormData.fromMap(<String, dynamic>{
+        // Must match backend @RequestPart("file").
+        'file': await MultipartFile.fromFile(
+          profilePhotoPath,
+          filename: safeFileName,
+        ),
+        // Must match backend @RequestParam names and string types.
+        ...commonParams,
+      });
+
+      response = await _apiClient.post(
+        ApiEndpoints.parentProfileUpload,
+        data: formData,
+        options: Options(contentType: Headers.multipartFormDataContentType),
+      );
+    } on DioException catch (e) {
+      final statusCode = e.response?.statusCode ?? 0;
+      if (statusCode != 500 && statusCode != 400) {
+        rethrow;
+      }
+
+      // Some gateways parse @RequestParam from query more reliably.
+      final fallbackFormData = FormData.fromMap(<String, dynamic>{
+        'file': await MultipartFile.fromFile(
+          profilePhotoPath,
+          filename: safeFileName,
+        ),
+      });
+
+      response = await _apiClient.post(
+        ApiEndpoints.parentProfileUpload,
+        data: fallbackFormData,
+        queryParameters: commonParams,
+        options: Options(contentType: Headers.multipartFormDataContentType),
+      );
+    }
+
+    final payload = response.data;
+    if (payload is! Map<String, dynamic>) {
+      return 'Profile updated successfully';
+    }
+
+    final status = payload['status']?.toString();
+    if (status == '1') {
+      final message = _extractPayloadMessage(payload);
+      if (message != null && message.isNotEmpty) {
+        return message;
+      }
+      return 'Profile updated successfully';
+    }
+
+    final errorMessage = _extractPayloadMessage(payload);
+    if (errorMessage != null && errorMessage.isNotEmpty) {
+      throw AuthException(errorMessage);
+    }
+
+    throw const AuthException('Failed to upload profile photo');
+  }
+
+  String _parseUpdateProfileResponse(dynamic rawPayload) {
+    if (rawPayload is! Map<String, dynamic>) {
+      throw const AuthException('Invalid server response');
+    }
+
+    final nestedStatus =
+        (rawPayload['message'] as Map<String, dynamic>?)?['userServiceStatus'];
+    if (nestedStatus is Map<String, dynamic>) {
+      final status = nestedStatus['status']?.toString();
+      if (status == '1') {
+        final nestedMessage = nestedStatus['message'];
+        if (nestedMessage is Map<String, dynamic>) {
+          final success =
+              nestedMessage['msg']?.toString() ??
+              nestedMessage['message']?.toString();
+          if (success != null && success.isNotEmpty) {
+            return success;
+          }
+        }
+        return 'Profile updated successfully';
+      }
+
+      final nestedMessage = nestedStatus['message'];
+      if (nestedMessage is Map<String, dynamic>) {
+        final error =
+            nestedMessage['errmsg']?.toString() ??
+            nestedMessage['msg']?.toString() ??
+            nestedMessage['message']?.toString();
+        if (error != null && error.isNotEmpty) {
+          throw AuthException(error);
+        }
+      }
+    }
+
+    final status = rawPayload['status']?.toString();
+    if (status == '1') {
+      return 'Profile updated successfully';
+    }
+
+    final message = _extractPayloadMessage(rawPayload);
+    if (message != null && message.isNotEmpty) {
+      throw AuthException(message);
+    }
+
+    throw const AuthException('Failed to update profile');
   }
 
   /// Logout user.

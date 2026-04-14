@@ -90,6 +90,21 @@ class ApiClient {
     );
   }
 
+  /// PATCH request.
+  Future<Response<T>> patch<T>(
+    String path, {
+    Object? data,
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+  }) async {
+    return _dio.patch<T>(
+      path,
+      data: data,
+      queryParameters: queryParameters,
+      options: options,
+    );
+  }
+
   /// DELETE request.
   Future<Response<T>> delete<T>(
     String path, {

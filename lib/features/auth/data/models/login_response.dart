@@ -58,23 +58,104 @@ class LoginData {
   });
 
   factory LoginData.fromJson(Map<String, dynamic> json) {
+    int? parseInt(dynamic value) {
+      if (value is int) {
+        return value;
+      }
+      if (value == null) {
+        return null;
+      }
+      return int.tryParse(value.toString());
+    }
+
+    List<int>? parseIntList(dynamic value) {
+      if (value is! List) {
+        return null;
+      }
+
+      final parsed = value.map(parseInt).whereType<int>().toList();
+      return parsed.isEmpty ? null : parsed;
+    }
+
+    int? readFirstInt(List<String> keys) {
+      for (final key in keys) {
+        final parsed = parseInt(json[key]);
+        if (parsed != null) {
+          return parsed;
+        }
+      }
+      return null;
+    }
+
+    List<int>? readFirstIntList(List<String> keys) {
+      for (final key in keys) {
+        final parsed = parseIntList(json[key]);
+        if (parsed != null && parsed.isNotEmpty) {
+          return parsed;
+        }
+      }
+      return null;
+    }
+
+    String readFirstString(List<String> keys) {
+      for (final key in keys) {
+        final value = json[key]?.toString().trim() ?? '';
+        if (value.isNotEmpty) {
+          return value;
+        }
+      }
+      return '';
+    }
+
+    DateTime? readFirstDateTime(List<String> keys) {
+      for (final key in keys) {
+        final raw = json[key];
+        if (raw == null) {
+          continue;
+        }
+        final parsed = DateTime.tryParse(raw.toString());
+        if (parsed != null) {
+          return parsed;
+        }
+      }
+      return null;
+    }
+
     return LoginData(
-      id: json['id'] as int,
+      id: parseInt(json['id']) ?? 0,
       username: json['username'] as String? ?? '',
       email: json['email'] as String? ?? '',
       name: json['name'] as String? ?? '',
       phoneNumber: json['phoneNumber'] as String?,
-      userToken: json['user_token'] as String? ?? '',
-      userTokenExpiry: json['user_token_expiry'] != null
-          ? DateTime.tryParse(json['user_token_expiry'].toString())
-          : null,
+      userToken: readFirstString(const [
+        'user_token',
+        'userToken',
+        'token',
+        'authToken',
+        'authtoken',
+      ]),
+      userTokenExpiry: readFirstDateTime(const [
+        'user_token_expiry',
+        'userTokenExpiry',
+        'token_expiry',
+        'tokenExpiry',
+      ]),
       loginType: json['login_type'] as String? ?? '',
-      studentId: json['student_id'] as int?,
-      childrenStudentId: (json['children_student_id'] as List<dynamic>?)
-          ?.map((e) => e as int)
-          .toList(),
+      studentId: readFirstInt(const [
+        'student_id',
+        'studentId',
+        'nstudentId',
+        'nstudentRegistrationId',
+        'student_registration_id',
+        'nid_student',
+      ]),
+      childrenStudentId: readFirstIntList(const [
+        'children_student_id',
+        'childrenStudentId',
+        'nchildrenStudentId',
+      ]),
       employeeId: json['employee_id'] as String?,
-      nstatus: json['nstatus'] as int?,
+      nstatus: parseInt(json['nstatus']),
     );
   }
 

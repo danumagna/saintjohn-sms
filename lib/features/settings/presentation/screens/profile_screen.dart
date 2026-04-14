@@ -1,18 +1,26 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:saintjohn_sms_mobile/core/localization/generated/app_localizations.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
-import '../../../auth/data/repositories/auth_repository.dart';
-import '../../../auth/providers/auth_provider.dart';
+import '../../../../routing/app_router.dart';
 import '../../../../shared/providers/shared_providers.dart';
+import '../../../../shared/utils/current_user_photo_loader.dart';
+import '../../../../shared/utils/current_user_session_storage.dart';
+import '../../../../shared/widgets/avatar/user_profile_avatar.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/inputs/app_text_field.dart';
+import '../../../auth/data/repositories/auth_repository.dart';
+import '../../../auth/domain/entities/user.dart';
+import '../../../auth/providers/auth_provider.dart';
 
 /// Profile screen for editing user information.
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -23,7 +31,7 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
-  final _formKey = GlobalKey<FormState>();
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
   late TextEditingController _emailController;
   late TextEditingController _phoneController;
@@ -32,9 +40,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   late TextEditingController _addressController;
   late TextEditingController _nationalityController;
   late TextEditingController _religionController;
+
   DateTime? _selectedBirthDate;
+  final ImagePicker _imagePicker = ImagePicker();
+  XFile? _selectedPhoto;
+  int _avatarCacheSeed = DateTime.now().millisecondsSinceEpoch;
+
   bool _isLoading = false;
-  bool _isFetchingProfile = false;
 
   @override
   void initState() {
@@ -83,13 +95,46 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     });
   }
 
+  Future<void> _pickProfilePhoto() async {
+    final picked = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 1200,
+    );
+
+    if (picked == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _selectedPhoto = picked;
+    });
+  }
+
+  Future<void> _showPhotoSourceSheet() async => _pickProfilePhoto();
+
+  String _appendCacheBust(String url) {
+    final trimmed = url.trim();
+    if (trimmed.isEmpty) {
+      return '';
+    }
+
+    final uri = Uri.tryParse(trimmed);
+    if (uri == null) {
+      return trimmed;
+    }
+
+    final params = Map<String, String>.from(uri.queryParameters);
+    params['t'] = _avatarCacheSeed.toString();
+
+    return uri.replace(queryParameters: params).toString();
+  }
+
   Future<void> _prefillProfileFromApi() async {
     final user = ref.read(currentUserProvider);
     if (user == null) {
       return;
     }
-
-    setState(() => _isFetchingProfile = true);
 
     try {
       final authRepository = ref.read(authRepositoryProvider);
@@ -131,15 +176,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           : _nationalityController.text;
       _religionController.text = profile['religion'] ?? '';
 
+      final photoUrl = profile['photoUrl'] ?? '';
+      final preloadedPhotoBytes = ref.read(currentUserPhotoBytesProvider);
+      if (preloadedPhotoBytes == null && photoUrl.isNotEmpty) {
+        ref.read(currentUserProvider.notifier).state = user.copyWith(
+          avatarUrl: _appendCacheBust(photoUrl),
+        );
+      }
+
       final dobText = _birthDateController.text.trim();
       if (dobText.isNotEmpty) {
         _selectedBirthDate = DateTime.tryParse(dobText);
       }
-    } finally {
-      if (mounted) {
-        setState(() => _isFetchingProfile = false);
-      }
-    }
+    } finally {}
   }
 
   Future<void> _handleSave() async {
@@ -152,7 +201,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     try {
       final authRepository = ref.read(authRepositoryProvider);
-      final message = await authRepository.updateParentProfile(
+      final authToken = user.userToken?.trim() ?? '';
+      if (authToken.isEmpty) {
+        throw const AuthException(
+          'Session token tidak tersedia. Silakan login ulang.',
+        );
+      }
+      authRepository.setAuthToken(authToken);
+
+      await authRepository.updateParentProfile(
         parentId: user.id,
         parentName: _nameController.text.trim(),
         parentEmail: _emailController.text.trim(),
@@ -162,32 +219,63 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         parentAddress: _addressController.text.trim(),
         parentNationality: _nationalityController.text.trim(),
         parentReligion: _religionController.text.trim(),
+        profilePhotoPath: _selectedPhoto?.path,
       );
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
-      ref.read(currentUserProvider.notifier).state = user.copyWith(
+      final updatedUser = user.copyWith(
         fullName: _nameController.text.trim(),
         email: _emailController.text.trim(),
         phone: _phoneController.text.trim(),
       );
+      ref.read(currentUserProvider.notifier).state = updatedUser;
+      await saveCurrentUserSessionIfRemembered(updatedUser);
 
-      setState(() => _isLoading = false);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: AppColors.success),
+      _avatarCacheSeed = DateTime.now().millisecondsSinceEpoch;
+      await preloadCurrentUserPhoto(
+        ref: ref,
+        user: updatedUser,
+        cacheBust: _avatarCacheSeed,
       );
-    } on AuthException catch (e) {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
+      await _prefillProfileFromApi();
 
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isLoading = false;
+        _selectedPhoto = null;
+      });
+
+      if (context.canPop()) {
+        context.pop();
+        return;
+      }
+
+      if (updatedUser.role == 'parent') {
+        context.go(AppRoutes.parentSettings);
+      } else {
+        context.go(AppRoutes.studentSettings);
+      }
+    } on AuthException catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.message), backgroundColor: AppColors.error),
       );
     } catch (_) {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
+      if (!mounted) {
+        return;
+      }
 
+      setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(l10n.commonError),
@@ -195,6 +283,40 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ),
       );
     }
+  }
+
+  Widget _buildAvatarFallback(String fullName) {
+    return Center(
+      child: Text(
+        fullName.isNotEmpty ? fullName[0].toUpperCase() : 'U',
+        style: const TextStyle(
+          fontFamily: 'Poppins',
+          fontSize: 40,
+          fontWeight: FontWeight.bold,
+          color: AppColors.primary,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAvatarImage(User user) {
+    if (_selectedPhoto != null) {
+      return Image.file(
+        File(_selectedPhoto!.path),
+        fit: BoxFit.cover,
+        errorBuilder: (_, error, stackTrace) {
+          return _buildAvatarFallback(user.fullName);
+        },
+      );
+    }
+
+    return UserProfileAvatar(
+      user: user,
+      size: 100,
+      backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+      textColor: AppColors.primary,
+      fontSize: 40,
+    );
   }
 
   @override
@@ -248,31 +370,40 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (_isFetchingProfile) ...[
-                  const LinearProgressIndicator(minHeight: 3),
-                  const SizedBox(height: AppDimensions.paddingM),
-                ],
                 Center(
-                      child: Container(
-                        width: 100,
-                        height: 100,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: Text(
-                            user.fullName.isNotEmpty
-                                ? user.fullName[0].toUpperCase()
-                                : 'U',
-                            style: const TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 40,
-                              fontWeight: FontWeight.bold,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Container(
+                            width: 100,
+                            height: 100,
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: ClipOval(child: _buildAvatarImage(user)),
+                          ),
+                          Positioned(
+                            right: -4,
+                            bottom: -4,
+                            child: Material(
                               color: AppColors.primary,
+                              shape: const CircleBorder(),
+                              child: InkWell(
+                                customBorder: const CircleBorder(),
+                                onTap: _showPhotoSourceSheet,
+                                child: const Padding(
+                                  padding: EdgeInsets.all(8),
+                                  child: Icon(
+                                    Iconsax.camera,
+                                    size: 16,
+                                    color: AppColors.textOnPrimary,
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ),
                     )
                     .animate()
@@ -439,17 +570,30 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     )
                     .slideX(begin: -0.1, end: 0),
                 const SizedBox(height: AppDimensions.paddingXXL),
-                PrimaryButton(
-                  text: l10n.commonSave,
-                  isLoading: _isLoading,
-                  onPressed: _handleSave,
-                ).animate().fadeIn(
-                  delay: const Duration(milliseconds: 700),
-                  duration: const Duration(milliseconds: 400),
-                ),
               ],
             ),
           ),
+        ),
+      ),
+      bottomNavigationBar: Container(
+        color: AppColors.surface,
+        padding: const EdgeInsets.fromLTRB(
+          AppDimensions.paddingL,
+          AppDimensions.paddingM,
+          AppDimensions.paddingL,
+          AppDimensions.paddingL,
+        ),
+        child: SafeArea(
+          top: false,
+          child:
+              PrimaryButton(
+                text: l10n.commonSave,
+                isLoading: _isLoading,
+                onPressed: _handleSave,
+              ).animate().fadeIn(
+                delay: const Duration(milliseconds: 700),
+                duration: const Duration(milliseconds: 400),
+              ),
         ),
       ),
     );

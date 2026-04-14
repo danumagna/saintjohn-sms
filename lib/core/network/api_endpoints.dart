@@ -32,5 +32,9 @@ class ApiEndpoints {
   static const String updateStudentPassword = '/app003/update-student-password';
   static const String parentProfile = '/app003/parent-profile';
   static const String parentProfileUpdate = '/app003/parent-profile-update';
+  static const String parentProfileUpload = '/app003/parent-profile-upload';
+  static const String parentProfileFile = '/app003/get-file/parent';
+  static const String dashboardStudentProfile =
+      '/app003/dashboard-student-profile';
   static const String pageAccess = '/msisms006/user/page-access';
 }

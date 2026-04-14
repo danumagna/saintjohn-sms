@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:dio/dio.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
@@ -109,9 +110,12 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
       return;
     }
 
-    if (authToken.isNotEmpty) {
-      _apiClient.setAuthToken(authToken);
+    if (authToken.isEmpty) {
+      await _showErrorDialog('Session berakhir. Silakan login ulang.');
+      return;
     }
+
+    _apiClient.setAuthToken(authToken);
 
     setState(() => _isLoading = true);
 
@@ -119,10 +123,13 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
       final response = await _apiClient.post(
         ApiEndpoints.updateStudentPassword,
         data: <String, dynamic>{
+          // Keep both keys for backend compatibility.
           'nuserId': userId,
+          'nid': userId,
           'vstudentDashboardOldPassword': _currentPasswordController.text,
           'vstudentDashboardNewPassword': _newPasswordController.text,
         },
+        options: Options(headers: <String, dynamic>{'AUTHTOKEN': authToken}),
       );
 
       final body = response.data;
@@ -132,6 +139,16 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
 
       final status = body['status']?.toString();
       if (status != '1') {
+        final message = body['message'];
+        if (message is Map<String, dynamic>) {
+          final errorMessage =
+              message['errmsg']?.toString() ??
+              message['msg']?.toString() ??
+              message['message']?.toString();
+          if (errorMessage != null && errorMessage.isNotEmpty) {
+            throw Exception(errorMessage);
+          }
+        }
         throw Exception(_passwordUsedMessage);
       }
 
@@ -143,9 +160,26 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
         ),
       );
       context.pop();
+    } on DioException catch (e) {
+      if (!mounted) return;
+      final data = e.response?.data;
+      if (data is Map<String, dynamic>) {
+        final message = data['message'];
+        if (message is Map<String, dynamic>) {
+          final errorMessage =
+              message['errmsg']?.toString() ??
+              message['msg']?.toString() ??
+              message['message']?.toString();
+          if (errorMessage != null && errorMessage.isNotEmpty) {
+            await _showErrorDialog(errorMessage);
+            return;
+          }
+        }
+      }
+      await _showErrorDialog(_passwordUsedMessage);
     } catch (e) {
       if (!mounted) return;
-      await _showErrorDialog(_passwordUsedMessage);
+      await _showErrorDialog(e.toString().replaceFirst('Exception: ', ''));
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);

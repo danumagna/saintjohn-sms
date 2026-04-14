@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
@@ -8,19 +9,122 @@ import 'package:saintjohn_sms_mobile/core/localization/generated/app_localizatio
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/constants/app_dimensions.dart';
 import '../../../../../routing/app_router.dart';
+import '../../../../../shared/utils/current_user_session_storage.dart';
 import '../../../../../shared/data/dummy/dummy_users.dart';
 import '../../../../../shared/providers/shared_providers.dart';
+import '../../../../../shared/widgets/avatar/user_profile_avatar.dart';
 import '../../../../../shared/widgets/cards/menu_card.dart';
+import '../../../../auth/providers/auth_provider.dart';
 
 /// Student dashboard screen.
-class StudentDashboardScreen extends ConsumerWidget {
+class StudentDashboardScreen extends ConsumerStatefulWidget {
   const StudentDashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<StudentDashboardScreen> createState() =>
+      _StudentDashboardScreenState();
+}
+
+class _StudentDashboardScreenState
+    extends ConsumerState<StudentDashboardScreen> {
+  bool _isProfileSyncInProgress = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future<void>.microtask(_syncStudentProfile);
+  }
+
+  Future<void> _syncStudentProfile() async {
+    if (_isProfileSyncInProgress) {
+      return;
+    }
+
+    final user = ref.read(currentUserProvider);
+    if (user == null || !user.isStudent) {
+      return;
+    }
+
+    final candidateIds = <int>{
+      if (user.studentId != null) user.studentId!,
+      ...?user.childrenStudentId,
+      int.tryParse(user.id) ?? -1,
+    }.where((id) => id > 0).toList();
+
+    if (candidateIds.isEmpty) {
+      return;
+    }
+
+    _isProfileSyncInProgress = true;
+
+    try {
+      final authRepository = ref.read(authRepositoryProvider);
+      final token = user.userToken?.trim() ?? '';
+      if (token.isNotEmpty) {
+        authRepository.setAuthToken(token);
+      }
+
+      Map<String, String>? profile;
+      for (final studentRegistrationId in candidateIds) {
+        try {
+          profile = await authRepository.getStudentDashboardProfile(
+            studentRegistrationId: studentRegistrationId,
+          );
+          break;
+        } on Exception catch (e) {
+          if (!kReleaseMode) {
+            debugPrint(
+              '[student_dashboard_profile] '
+              'failed for nstudentRegistrationId=$studentRegistrationId '
+              'error=$e',
+            );
+          }
+        }
+      }
+
+      if (profile == null) {
+        return;
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      final updatedUser = user.copyWith(
+        fullName: profile['name']?.trim().isNotEmpty == true
+            ? profile['name']!.trim()
+            : user.fullName,
+        email: profile['email']?.trim().isNotEmpty == true
+            ? profile['email']!.trim()
+            : user.email,
+        className: profile['className']?.trim().isNotEmpty == true
+            ? profile['className']!.trim()
+            : user.className,
+        avatarUrl: profile['photoUrl']?.trim().isNotEmpty == true
+            ? profile['photoUrl']!.trim()
+            : user.avatarUrl,
+      );
+
+      ref.read(currentUserProvider.notifier).state = updatedUser;
+      if (profile['photoUrl']?.trim().isNotEmpty == true) {
+        ref.read(currentUserPhotoBytesProvider.notifier).state = null;
+      }
+      await saveCurrentUserSessionIfRemembered(updatedUser);
+    } catch (_) {
+      // Keep UI resilient; dashboard remains usable with existing state.
+    } finally {
+      _isProfileSyncInProgress = false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final user =
         ref.watch(currentUserProvider) ?? DummyUsers.getDefaultStudent();
+    final firstName = user.fullName.trim().isEmpty
+        ? l10n.authLoginAsStudent
+        : user.fullName.trim().split(RegExp(r'\s+')).first;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -36,26 +140,15 @@ class StudentDashboardScreen extends ConsumerWidget {
               Row(
                 children: [
                   // Avatar
-                  Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: AppColors.secondary.withValues(alpha: 0.1),
-                          shape: BoxShape.circle,
+                  UserProfileAvatar(
+                        user: user,
+                        size: 44,
+                        backgroundColor: AppColors.secondary.withValues(
+                          alpha: 0.1,
                         ),
-                        child: Center(
-                          child: Text(
-                            user.fullName.isNotEmpty
-                                ? user.fullName[0].toUpperCase()
-                                : 'S',
-                            style: const TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.secondary,
-                            ),
-                          ),
-                        ),
+                        textColor: AppColors.secondary,
+                        fontSize: 18,
+                        fallbackLetter: 'S',
                       )
                       .animate()
                       .fadeIn(duration: const Duration(milliseconds: 400))
@@ -67,9 +160,7 @@ class StudentDashboardScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                              l10n.dashboardWelcome(
-                                user.fullName.split(' ').first,
-                              ),
+                              l10n.dashboardWelcome(firstName),
                               style: const TextStyle(
                                 fontFamily: 'Poppins',
                                 fontSize: 16,

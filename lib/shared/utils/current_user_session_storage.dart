@@ -64,6 +64,10 @@ Map<String, dynamic> _userToJson(User user) {
     'avatarUrl': user.avatarUrl,
     'grade': user.grade,
     'className': user.className,
+    'birthDate': user.birthDate,
+    'dream': user.dream,
+    'schoolName': user.schoolName,
+    'classId': user.classId,
     'createdAt': user.createdAt.toIso8601String(),
     'userToken': user.userToken,
     'userTokenExpiry': user.userTokenExpiry?.toIso8601String(),
@@ -90,6 +94,10 @@ User _userFromJson(Map<String, dynamic> json) {
     avatarUrl: json['avatarUrl']?.toString(),
     grade: json['grade']?.toString(),
     className: json['className']?.toString(),
+    birthDate: json['birthDate']?.toString(),
+    dream: json['dream']?.toString(),
+    schoolName: json['schoolName']?.toString(),
+    classId: int.tryParse(json['classId']?.toString() ?? ''),
     createdAt:
         DateTime.tryParse(json['createdAt']?.toString() ?? '') ??
         DateTime.now(),

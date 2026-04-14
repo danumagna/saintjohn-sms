@@ -498,10 +498,12 @@ class AuthRepository {
         'photoUrl': _normalizeProfilePhotoUrl(
           _readString(source, const [
             'vstudentDashboardProfilePicture',
+            'student_picture',
             'profile_picture',
           ]),
         ),
         'name': _readString(source, const [
+          'name',
           'vstudentDashboardProfileName',
           'vstudentProfileFullName',
           'full_name',
@@ -511,8 +513,28 @@ class AuthRepository {
           'email',
         ]),
         'className': _readString(source, const [
-          'vstudentDashboardProfileClassName',
           'class_name',
+          'vstudentDashboardProfileClassName',
+          'className',
+        ]),
+        'schoolName': _readString(source, const ['school_name', 'schoolName']),
+        'birthDate': _readString(source, const [
+          'birthdate',
+          'date_of_birth',
+          'dateOfBirth',
+        ]),
+        'dream': _readString(source, const ['dream']),
+        'studentId': _readString(source, const [
+          'id_student',
+          'student_id',
+          'idStudent',
+          'studentId',
+        ]),
+        'classId': _readString(source, const [
+          'id_class',
+          'class_id',
+          'idClass',
+          'classId',
         ]),
         'address': _readString(source, const [
           'vstudentDashboardProfileAddress',

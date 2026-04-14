@@ -8,6 +8,10 @@ class User {
   final String? avatarUrl;
   final String? grade; // Only for students
   final String? className; // Only for students
+  final String? birthDate; // Only for students
+  final String? dream; // Only for students
+  final String? schoolName; // Only for students
+  final int? classId; // Only for students
   final DateTime createdAt;
   final String? userToken;
   final DateTime? userTokenExpiry;
@@ -23,6 +27,10 @@ class User {
     this.avatarUrl,
     this.grade,
     this.className,
+    this.birthDate,
+    this.dream,
+    this.schoolName,
+    this.classId,
     required this.createdAt,
     this.userToken,
     this.userTokenExpiry,
@@ -39,6 +47,10 @@ class User {
     String? avatarUrl,
     String? grade,
     String? className,
+    String? birthDate,
+    String? dream,
+    String? schoolName,
+    int? classId,
     DateTime? createdAt,
     String? userToken,
     DateTime? userTokenExpiry,
@@ -54,6 +66,10 @@ class User {
       avatarUrl: avatarUrl ?? this.avatarUrl,
       grade: grade ?? this.grade,
       className: className ?? this.className,
+      birthDate: birthDate ?? this.birthDate,
+      dream: dream ?? this.dream,
+      schoolName: schoolName ?? this.schoolName,
+      classId: classId ?? this.classId,
       createdAt: createdAt ?? this.createdAt,
       userToken: userToken ?? this.userToken,
       userTokenExpiry: userTokenExpiry ?? this.userTokenExpiry,

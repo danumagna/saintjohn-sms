@@ -100,6 +100,17 @@ class _StudentDashboardScreenState
         className: profile['className']?.trim().isNotEmpty == true
             ? profile['className']!.trim()
             : user.className,
+        schoolName: profile['schoolName']?.trim().isNotEmpty == true
+            ? profile['schoolName']!.trim()
+            : user.schoolName,
+        birthDate: profile['birthDate']?.trim().isNotEmpty == true
+            ? profile['birthDate']!.trim()
+            : user.birthDate,
+        dream: profile['dream']?.trim().isNotEmpty == true
+            ? profile['dream']!.trim()
+            : user.dream,
+        classId: int.tryParse(profile['classId'] ?? '') ?? user.classId,
+        studentId: int.tryParse(profile['studentId'] ?? '') ?? user.studentId,
         avatarUrl: profile['photoUrl']?.trim().isNotEmpty == true
             ? profile['photoUrl']!.trim()
             : user.avatarUrl,
@@ -175,12 +186,16 @@ class _StudentDashboardScreenState
                             )
                             .slideX(begin: 0.1, end: 0),
                         Text(
-                          user.className ?? l10n.authLoginAsStudent,
+                          (user.schoolName?.trim().isNotEmpty ?? false)
+                              ? '${user.className ?? l10n.authLoginAsStudent} • ${user.schoolName!.trim()}'
+                              : (user.className ?? l10n.authLoginAsStudent),
                           style: const TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 12,
                             color: AppColors.textSecondary,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ).animate().fadeIn(
                           delay: const Duration(milliseconds: 200),
                           duration: const Duration(milliseconds: 400),

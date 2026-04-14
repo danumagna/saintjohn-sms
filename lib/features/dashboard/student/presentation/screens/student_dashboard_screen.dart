@@ -227,9 +227,9 @@ class _StudentDashboardScreenState
                   ),
                 ],
               ),
-              const SizedBox(height: AppDimensions.paddingM),
+              const SizedBox(height: AppDimensions.paddingS),
               Container(
-                padding: const EdgeInsets.all(AppDimensions.paddingM),
+                padding: const EdgeInsets.all(AppDimensions.paddingS),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(AppDimensions.radiusL),
@@ -243,14 +243,14 @@ class _StudentDashboardScreenState
                       color: AppColors.info,
                     ),
                     const SizedBox(height: AppDimensions.paddingS),
-                    // Summary Section - 4+3 Grid (no scroll)
+                    // Summary Section - 3 rows grid (no scroll)
                     GridView.count(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: 4,
+                      crossAxisCount: 3,
                       crossAxisSpacing: AppDimensions.paddingS,
                       mainAxisSpacing: AppDimensions.paddingS,
-                      childAspectRatio: 1.2,
+                      childAspectRatio: 1.45,
                       children: [
                         _buildSummaryChip(
                           icon: Iconsax.chart_2,
@@ -314,7 +314,7 @@ class _StudentDashboardScreenState
                   ],
                 ),
               ),
-              const SizedBox(height: AppDimensions.paddingM),
+              const SizedBox(height: AppDimensions.paddingS),
               _buildSectionHeader(
                 title: l10n.dashboardMainMenuSectionTitle,
                 icon: Iconsax.element_4,

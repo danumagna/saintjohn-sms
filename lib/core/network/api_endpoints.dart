@@ -36,5 +36,8 @@ class ApiEndpoints {
   static const String parentProfileFile = '/app003/get-file/parent';
   static const String dashboardStudentProfile =
       '/app003/dashboard-student-profile';
+  static const String studentDataStudent = '/msisms003/student-data/student';
+  static const String studentSchedule =
+      '/msisms003/parent-user/get-student-schedule';
   static const String pageAccess = '/msisms006/user/page-access';
 }

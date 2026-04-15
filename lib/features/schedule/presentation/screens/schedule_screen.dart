@@ -1,40 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:shimmer/shimmer.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
-
-/// Schedule item model.
-class ScheduleItem {
-  final String subject;
-  final String teacher;
-  final String room;
-  final String startTime;
-  final String endTime;
-  final Color color;
-
-  const ScheduleItem({
-    required this.subject,
-    required this.teacher,
-    required this.room,
-    required this.startTime,
-    required this.endTime,
-    required this.color,
-  });
-}
+import '../../../../shared/providers/shared_providers.dart';
+import '../../data/models/student_schedule_item.dart';
+import '../../providers/schedule_provider.dart';
 
 /// Schedule screen showing class timetable.
-class ScheduleScreen extends StatefulWidget {
+class ScheduleScreen extends ConsumerStatefulWidget {
   const ScheduleScreen({super.key});
 
   @override
-  State<ScheduleScreen> createState() => _ScheduleScreenState();
+  ConsumerState<ScheduleScreen> createState() => _ScheduleScreenState();
 }
 
-class _ScheduleScreenState extends State<ScheduleScreen> {
+class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
   int _selectedDayIndex = 0;
+  late final List<int> _orderedDayIndexes;
+  Future<int?>? _resolvedClassIdFuture;
+  String? _classResolutionError;
 
   final List<String> _days = [
     'Monday',
@@ -44,254 +33,427 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     'Friday',
   ];
 
-  final Map<int, List<ScheduleItem>> _scheduleData = {
-    0: [
-      // Monday
-      ScheduleItem(
-        subject: 'Mathematics',
-        teacher: 'Mr. John Smith',
-        room: 'Room 101',
-        startTime: '07:30',
-        endTime: '09:00',
-        color: Colors.blue,
-      ),
-      ScheduleItem(
-        subject: 'Physics',
-        teacher: 'Mrs. Sarah Johnson',
-        room: 'Lab A',
-        startTime: '09:15',
-        endTime: '10:45',
-        color: Colors.purple,
-      ),
-      ScheduleItem(
-        subject: 'English',
-        teacher: 'Ms. Emily Brown',
-        room: 'Room 205',
-        startTime: '11:00',
-        endTime: '12:30',
-        color: Colors.green,
-      ),
-      ScheduleItem(
-        subject: 'Chemistry',
-        teacher: 'Mr. David Lee',
-        room: 'Lab B',
-        startTime: '13:30',
-        endTime: '15:00',
-        color: Colors.orange,
-      ),
-    ],
-    1: [
-      // Tuesday
-      ScheduleItem(
-        subject: 'Biology',
-        teacher: 'Dr. Michael Chen',
-        room: 'Lab C',
-        startTime: '07:30',
-        endTime: '09:00',
-        color: Colors.teal,
-      ),
-      ScheduleItem(
-        subject: 'Indonesian',
-        teacher: 'Ibu Siti Rahayu',
-        room: 'Room 102',
-        startTime: '09:15',
-        endTime: '10:45',
-        color: Colors.red,
-      ),
-      ScheduleItem(
-        subject: 'History',
-        teacher: 'Mr. Robert Wilson',
-        room: 'Room 301',
-        startTime: '11:00',
-        endTime: '12:30',
-        color: Colors.brown,
-      ),
-    ],
-    2: [
-      // Wednesday
-      ScheduleItem(
-        subject: 'Mathematics',
-        teacher: 'Mr. John Smith',
-        room: 'Room 101',
-        startTime: '07:30',
-        endTime: '09:00',
-        color: Colors.blue,
-      ),
-      ScheduleItem(
-        subject: 'Art',
-        teacher: 'Ms. Lisa Anderson',
-        room: 'Art Studio',
-        startTime: '09:15',
-        endTime: '10:45',
-        color: Colors.pink,
-      ),
-      ScheduleItem(
-        subject: 'Physical Education',
-        teacher: 'Coach James Taylor',
-        room: 'Sports Field',
-        startTime: '11:00',
-        endTime: '12:30',
-        color: Colors.amber,
-      ),
-      ScheduleItem(
-        subject: 'English',
-        teacher: 'Ms. Emily Brown',
-        room: 'Room 205',
-        startTime: '13:30',
-        endTime: '15:00',
-        color: Colors.green,
-      ),
-    ],
-    3: [
-      // Thursday
-      ScheduleItem(
-        subject: 'Physics',
-        teacher: 'Mrs. Sarah Johnson',
-        room: 'Lab A',
-        startTime: '07:30',
-        endTime: '09:00',
-        color: Colors.purple,
-      ),
-      ScheduleItem(
-        subject: 'Geography',
-        teacher: 'Mr. William Harris',
-        room: 'Room 302',
-        startTime: '09:15',
-        endTime: '10:45',
-        color: Colors.cyan,
-      ),
-      ScheduleItem(
-        subject: 'Chemistry',
-        teacher: 'Mr. David Lee',
-        room: 'Lab B',
-        startTime: '11:00',
-        endTime: '12:30',
-        color: Colors.orange,
-      ),
-    ],
-    4: [
-      // Friday
-      ScheduleItem(
-        subject: 'Biology',
-        teacher: 'Dr. Michael Chen',
-        room: 'Lab C',
-        startTime: '07:30',
-        endTime: '09:00',
-        color: Colors.teal,
-      ),
-      ScheduleItem(
-        subject: 'Music',
-        teacher: 'Mr. Daniel Martin',
-        room: 'Music Room',
-        startTime: '09:15',
-        endTime: '10:45',
-        color: Colors.indigo,
-      ),
-      ScheduleItem(
-        subject: 'Religion',
-        teacher: 'Father Anthony',
-        room: 'Chapel',
-        startTime: '11:00',
-        endTime: '12:30',
-        color: Colors.deepPurple,
-      ),
-    ],
-  };
+  @override
+  void initState() {
+    super.initState();
+    _orderedDayIndexes = _buildOrderedDayIndexes();
+    _resolvedClassIdFuture = _resolveClassId();
+  }
+
+  Future<int?> _resolveClassId() async {
+    final user = ref.read(currentUserProvider);
+    if (user == null || !user.isStudent) {
+      return null;
+    }
+
+    final candidateNidUsers = <int>{
+      if (user.studentId != null) user.studentId!,
+      if (int.tryParse(user.id) != null) int.tryParse(user.id)!,
+    }.where((id) => id > 0).toList();
+
+    if (candidateNidUsers.isEmpty) {
+      return null;
+    }
+
+    final token = user.userToken?.trim() ?? '';
+    final repository = ref.read(scheduleRepositoryProvider);
+
+    String? lastErrorMessage;
+    for (final nidUser in candidateNidUsers) {
+      try {
+        _classResolutionError = null;
+        return await repository.getClassIdByNidUser(
+          nidUser: nidUser,
+          authToken: token,
+        );
+      } catch (e) {
+        final message = e.toString().trim();
+        if (message.isNotEmpty) {
+          lastErrorMessage = message;
+        }
+      }
+    }
+
+    _classResolutionError = lastErrorMessage;
+
+    return null;
+  }
+
+  void _retryClassIdResolution() {
+    setState(() {
+      _classResolutionError = null;
+      _resolvedClassIdFuture = _resolveClassId();
+    });
+  }
+
+  List<int> _buildOrderedDayIndexes() {
+    final int todayWeekday = DateTime.now().weekday;
+    final int todayIndex = todayWeekday >= 1 && todayWeekday <= _days.length
+        ? todayWeekday - 1
+        : 0;
+
+    return List<int>.generate(
+      _days.length,
+      (int offset) => (todayIndex + offset) % _days.length,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final currentSchedule = _scheduleData[_selectedDayIndex] ?? [];
+    final int selectedDay = _orderedDayIndexes[_selectedDayIndex] + 1;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: Text('Class Schedule'),
+        title: const Text('Class Schedule'),
         leading: IconButton(
           icon: const Icon(Iconsax.arrow_left),
           onPressed: () => context.pop(),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _retryClassIdResolution,
+          ),
+        ],
       ),
       body: Column(
         children: [
-          // Day Selector
-          Container(
-            height: 80,
-            padding: const EdgeInsets.symmetric(
-              vertical: AppDimensions.paddingM,
-            ),
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppDimensions.paddingM,
-              ),
-              itemCount: _days.length,
-              itemBuilder: (context, index) {
-                final isSelected = index == _selectedDayIndex;
-                return GestureDetector(
-                  onTap: () => setState(() => _selectedDayIndex = index),
-                  child:
-                      Container(
-                            width: 65,
-                            margin: const EdgeInsets.only(
-                              right: AppDimensions.paddingS,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? AppColors.primary
-                                  : AppColors.surface,
-                              borderRadius: BorderRadius.circular(
-                                AppDimensions.radiusM,
-                              ),
-                              boxShadow: [
-                                if (isSelected)
-                                  BoxShadow(
-                                    color: AppColors.primary.withValues(
-                                      alpha: 0.3,
-                                    ),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 4),
-                                  ),
-                              ],
-                            ),
-                            child: Center(
-                              child: Text(
-                                _days[index].substring(0, 3),
-                                style: TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: isSelected
-                                      ? AppColors.textOnPrimary
-                                      : AppColors.textSecondary,
-                                ),
-                              ),
-                            ),
-                          )
-                          .animate(target: isSelected ? 1 : 0)
-                          .scale(
-                            begin: const Offset(1, 1),
-                            end: const Offset(1.05, 1.05),
-                            duration: const Duration(milliseconds: 200),
-                          ),
-                );
-              },
-            ),
-          ).animate().fadeIn(duration: const Duration(milliseconds: 400)),
-          // Schedule List
-          Expanded(
-            child: currentSchedule.isEmpty
-                ? _buildEmptyState()
-                : ListView.builder(
-                    padding: const EdgeInsets.all(AppDimensions.paddingM),
-                    itemCount: currentSchedule.length,
-                    itemBuilder: (context, index) {
-                      final item = currentSchedule[index];
-                      return _buildScheduleCard(item, index);
-                    },
-                  ),
-          ),
+          _buildDaySelector(),
+          Expanded(child: _buildClassResolutionBody(selectedDay: selectedDay)),
         ],
+      ),
+    );
+  }
+
+  Widget _buildClassResolutionBody({required int selectedDay}) {
+    final classIdFuture = _resolvedClassIdFuture;
+    if (classIdFuture == null) {
+      return _buildInfoState('Class data is not available.');
+    }
+
+    return FutureBuilder<int?>(
+      future: classIdFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return _buildClassLoadingSkeleton();
+        }
+
+        if (snapshot.hasError) {
+          return _buildErrorState(
+            message: 'Failed to load class data.',
+            onRetry: _retryClassIdResolution,
+          );
+        }
+
+        final resolvedClassId = snapshot.data;
+        if (resolvedClassId == null || resolvedClassId <= 0) {
+          final errorText = _classResolutionError;
+          if (errorText != null && errorText.isNotEmpty) {
+            return _buildErrorState(
+              message: errorText,
+              onRetry: _retryClassIdResolution,
+            );
+          }
+          return _buildInfoState('Class data is not available.');
+        }
+
+        return _buildScheduleBody(
+          classId: resolvedClassId,
+          selectedDay: selectedDay,
+        );
+      },
+    );
+  }
+
+  Widget _buildClassLoadingSkeleton() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingL),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Shimmer.fromColors(
+              baseColor: AppColors.border,
+              highlightColor: AppColors.surface,
+              child: Container(
+                width: 64,
+                height: 64,
+                decoration: const BoxDecoration(
+                  color: AppColors.surface,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+            const SizedBox(height: AppDimensions.paddingM),
+            Shimmer.fromColors(
+              baseColor: AppColors.border,
+              highlightColor: AppColors.surface,
+              child: Container(
+                width: 180,
+                height: 14,
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(AppDimensions.radiusS),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppDimensions.paddingS),
+            Shimmer.fromColors(
+              baseColor: AppColors.border,
+              highlightColor: AppColors.surface,
+              child: Container(
+                width: 130,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(AppDimensions.radiusS),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDaySelector() {
+    return Container(
+      height: 80,
+      padding: const EdgeInsets.symmetric(vertical: AppDimensions.paddingM),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingM),
+        itemCount: _days.length,
+        itemBuilder: (context, index) {
+          final int dayIndex = _orderedDayIndexes[index];
+          final isSelected = index == _selectedDayIndex;
+          return GestureDetector(
+            onTap: () => setState(() => _selectedDayIndex = index),
+            child:
+                Container(
+                      width: 65,
+                      margin: const EdgeInsets.only(
+                        right: AppDimensions.paddingS,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? AppColors.primary
+                            : AppColors.surface,
+                        borderRadius: BorderRadius.circular(
+                          AppDimensions.radiusM,
+                        ),
+                        boxShadow: [
+                          if (isSelected)
+                            BoxShadow(
+                              color: AppColors.primary.withValues(alpha: 0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Text(
+                          _days[dayIndex].substring(0, 3),
+                          style: TextStyle(
+                            fontFamily: 'Poppins',
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: isSelected
+                                ? AppColors.textOnPrimary
+                                : AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    )
+                    .animate(target: isSelected ? 1 : 0)
+                    .scale(
+                      begin: const Offset(1, 1),
+                      end: const Offset(1.05, 1.05),
+                      duration: const Duration(milliseconds: 200),
+                    ),
+          );
+        },
+      ),
+    ).animate().fadeIn(duration: const Duration(milliseconds: 400));
+  }
+
+  Widget _buildScheduleBody({required int classId, required int selectedDay}) {
+    final scheduleAsync = ref.watch(studentScheduleProvider(classId));
+
+    return scheduleAsync.when(
+      loading: _buildScheduleLoadingSkeleton,
+      error: (error, _) => _buildErrorState(
+        message: _sanitizeErrorMessage(error),
+        onRetry: () => ref.invalidate(studentScheduleProvider(classId)),
+      ),
+      data: (scheduleByDay) {
+        _ensureSelectedDayHasData(scheduleByDay);
+        final currentSchedule =
+            scheduleByDay[selectedDay] ?? <StudentScheduleItem>[];
+
+        if (currentSchedule.isEmpty) {
+          return _buildEmptyState();
+        }
+
+        return RefreshIndicator(
+          color: AppColors.primary,
+          onRefresh: () async {
+            ref.invalidate(studentScheduleProvider(classId));
+            await ref.read(studentScheduleProvider(classId).future);
+          },
+          child: ListView.builder(
+            padding: const EdgeInsets.all(AppDimensions.paddingM),
+            itemCount: currentSchedule.length,
+            itemBuilder: (context, index) {
+              final item = currentSchedule[index];
+              return _buildScheduleCard(item, index);
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildScheduleLoadingSkeleton() {
+    return ListView.builder(
+      padding: const EdgeInsets.all(AppDimensions.paddingM),
+      itemCount: 5,
+      itemBuilder: (context, index) {
+        return Shimmer.fromColors(
+          baseColor: AppColors.border,
+          highlightColor: AppColors.surface,
+          child: Card(
+            elevation: AppDimensions.elevationS,
+            margin: const EdgeInsets.only(bottom: AppDimensions.paddingM),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppDimensions.radiusM),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(AppDimensions.paddingM),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSkeletonLine(width: 120),
+                  const SizedBox(height: AppDimensions.paddingS),
+                  _buildSkeletonLine(width: double.infinity),
+                  const SizedBox(height: AppDimensions.paddingS),
+                  _buildSkeletonLine(width: 150),
+                  const SizedBox(height: AppDimensions.paddingS),
+                  _buildSkeletonLine(width: 180),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSkeletonLine({required double width}) {
+    return Container(
+      width: width,
+      height: 12,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppDimensions.radiusS),
+      ),
+    );
+  }
+
+  void _ensureSelectedDayHasData(
+    Map<int, List<StudentScheduleItem>> scheduleByDay,
+  ) {
+    if (scheduleByDay.isEmpty) {
+      return;
+    }
+
+    final selectedDay = _orderedDayIndexes[_selectedDayIndex] + 1;
+    final selectedItems = scheduleByDay[selectedDay] ?? <StudentScheduleItem>[];
+    if (selectedItems.isNotEmpty) {
+      return;
+    }
+
+    int? nextIndex;
+    for (int i = 0; i < _orderedDayIndexes.length; i++) {
+      final day = _orderedDayIndexes[i] + 1;
+      final items = scheduleByDay[day] ?? <StudentScheduleItem>[];
+      if (items.isNotEmpty) {
+        nextIndex = i;
+        break;
+      }
+    }
+
+    if (nextIndex == null || nextIndex == _selectedDayIndex) {
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _selectedDayIndex = nextIndex!;
+      });
+    });
+  }
+
+  String _sanitizeErrorMessage(Object error) {
+    final text = error.toString().trim();
+    if (text.isEmpty) {
+      return 'Failed to load schedule.';
+    }
+    return text;
+  }
+
+  Widget _buildInfoState(String message) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingL),
+        child: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 14,
+            color: AppColors.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState({
+    required String message,
+    required VoidCallback onRetry,
+  }) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingL),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.warning_amber_rounded,
+              size: 56,
+              color: AppColors.warning,
+            ),
+            const SizedBox(height: AppDimensions.paddingM),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: AppDimensions.paddingM),
+            ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
+          ],
+        ),
       ),
     );
   }
@@ -327,130 +489,57 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     );
   }
 
-  Widget _buildScheduleCard(ScheduleItem item, int index) {
+  Widget _buildScheduleCard(StudentScheduleItem item, int index) {
+    final accentColor = _subjectColor(item.subjectName);
+
     return Card(
           elevation: AppDimensions.elevationS,
           margin: const EdgeInsets.only(bottom: AppDimensions.paddingM),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppDimensions.radiusM),
           ),
-          child: Row(
-            children: [
-              Container(
-                width: 4,
-                height: 100,
-                decoration: BoxDecoration(
-                  color: item.color,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(AppDimensions.radiusM),
-                    bottomLeft: Radius.circular(AppDimensions.radiusM),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  width: 4,
+                  decoration: BoxDecoration(
+                    color: accentColor,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(AppDimensions.radiusM),
+                      bottomLeft: Radius.circular(AppDimensions.radiusM),
+                    ),
                   ),
                 ),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppDimensions.paddingM),
-                  child: Row(
-                    children: [
-                      // Time
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Text(
-                            item.startTime,
-                            style: const TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          Container(
-                            height: 20,
-                            width: 1,
-                            margin: const EdgeInsets.symmetric(vertical: 4),
-                            color: AppColors.borderLight,
-                          ),
-                          Text(
-                            item.endTime,
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(width: AppDimensions.paddingM),
-                      Container(
-                        width: 1,
-                        height: 60,
-                        color: AppColors.borderLight,
-                      ),
-                      const SizedBox(width: AppDimensions.paddingM),
-                      // Details
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item.subject,
-                              style: const TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                            const SizedBox(height: AppDimensions.paddingXS),
-                            Row(
-                              children: [
-                                const Icon(
-                                  Iconsax.user,
-                                  size: 14,
-                                  color: AppColors.textTertiary,
-                                ),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    item.teacher,
-                                    style: const TextStyle(
-                                      fontFamily: 'Inter',
-                                      fontSize: 12,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 2),
-                            Row(
-                              children: [
-                                const Icon(
-                                  Iconsax.location,
-                                  size: 14,
-                                  color: AppColors.textTertiary,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  item.room,
-                                  style: const TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 12,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppDimensions.paddingM),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildFieldRow(
+                          label: 'Subject',
+                          value: item.subjectName,
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: AppDimensions.paddingXS),
+                        _buildFieldRow(
+                          label: 'Teacher',
+                          value: item.teacherName,
+                        ),
+                        const SizedBox(height: AppDimensions.paddingXS),
+                        _buildFieldRow(
+                          label: 'Start',
+                          value: item.startDisplay,
+                        ),
+                        const SizedBox(height: AppDimensions.paddingXS),
+                        _buildFieldRow(label: 'End', value: item.endDisplay),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         )
         .animate()
@@ -460,7 +549,48 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         )
         .slideX(begin: 0.1, end: 0);
   }
+
+  Widget _buildFieldRow({required String label, required String value}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 64,
+          child: Text(
+            '$label:',
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 13,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Color _subjectColor(String subjectName) {
+    const palette = <Color>[
+      AppColors.primary,
+      AppColors.secondary,
+      AppColors.success,
+      AppColors.warning,
+      AppColors.info,
+      AppColors.schedule,
+    ];
+
+    final hash = subjectName.toLowerCase().hashCode.abs();
+    return palette[hash % palette.length];
+  }
 }
-
-
-

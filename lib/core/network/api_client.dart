@@ -3,8 +3,13 @@ import 'package:flutter/foundation.dart';
 
 import 'api_endpoints.dart';
 
+typedef UnauthorizedSessionHandler = Future<void> Function();
+
 /// API client wrapper for network requests.
 class ApiClient {
+  static UnauthorizedSessionHandler? _unauthorizedHandler;
+  static bool _isUnauthorizedFlowRunning = false;
+
   late final Dio _dio;
 
   ApiClient() {
@@ -16,6 +21,23 @@ class ApiClient {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+        },
+      ),
+    );
+
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+        onResponse: (response, handler) async {
+          if (_isTokenExpiredPayload(response.data)) {
+            await _triggerUnauthorizedHandler();
+          }
+          handler.next(response);
+        },
+        onError: (error, handler) async {
+          if (_isUnauthorizedError(error)) {
+            await _triggerUnauthorizedHandler();
+          }
+          handler.next(error);
         },
       ),
     );
@@ -33,6 +55,81 @@ class ApiClient {
         ),
       );
     }
+  }
+
+  /// Registers a callback invoked once when unauthorized responses occur.
+  static void registerUnauthorizedHandler(UnauthorizedSessionHandler handler) {
+    _unauthorizedHandler = handler;
+  }
+
+  Future<void> _triggerUnauthorizedHandler() async {
+    if (_isUnauthorizedFlowRunning) {
+      return;
+    }
+
+    final handler = _unauthorizedHandler;
+    if (handler == null) {
+      return;
+    }
+
+    _isUnauthorizedFlowRunning = true;
+    try {
+      await handler();
+    } catch (error) {
+      if (kDebugMode) {
+        debugPrint('[unauthorized_handler_error] $error');
+      }
+    } finally {
+      _isUnauthorizedFlowRunning = false;
+    }
+  }
+
+  bool _isUnauthorizedError(DioException error) {
+    final statusCode = error.response?.statusCode;
+    if (statusCode == 401 || statusCode == 403 || statusCode == 419) {
+      return true;
+    }
+
+    return _isTokenExpiredPayload(error.response?.data);
+  }
+
+  bool _isTokenExpiredPayload(dynamic payload) {
+    if (payload is! Map<String, dynamic>) {
+      return false;
+    }
+
+    final errorText = _extractErrorText(payload).toLowerCase();
+    if (errorText.isEmpty) {
+      return false;
+    }
+
+    final hasTokenKeyword =
+        errorText.contains('token') || errorText.contains('authtoken');
+    final hasUnauthorizedKeyword =
+        errorText.contains('expired') ||
+        errorText.contains('invalid') ||
+        errorText.contains('unauthor') ||
+        errorText.contains('session');
+
+    return hasTokenKeyword && hasUnauthorizedKeyword;
+  }
+
+  String _extractErrorText(Map<String, dynamic> payload) {
+    final message = payload['message'];
+
+    if (message is String) {
+      return message;
+    }
+
+    if (message is Map<String, dynamic>) {
+      return <String>[
+        message['errmsg']?.toString() ?? '',
+        message['msg']?.toString() ?? '',
+        message['message']?.toString() ?? '',
+      ].join(' ').trim();
+    }
+
+    return payload['errmsg']?.toString() ?? '';
   }
 
   /// Set auth token in headers.

@@ -27,6 +27,7 @@ import '../../features/reports/presentation/screens/attendance_report_screen.dar
 import '../../features/reports/presentation/screens/exam_schedule_screen.dart';
 import '../../features/reports/presentation/screens/session_attendance_screen.dart';
 import '../../features/reports/presentation/screens/student_progress_screen.dart';
+import '../../shared/providers/shared_providers.dart' show currentUserProvider;
 import '../../shared/widgets/navigation/main_shell.dart';
 
 /// Route names for the application.
@@ -70,9 +71,40 @@ class AppRoutes {
 
 /// Router provider for the application.
 final routerProvider = Provider<GoRouter>((ref) {
+  final currentUser = ref.watch(currentUserProvider);
+
   return GoRouter(
     initialLocation: AppRoutes.splash,
     debugLogDiagnostics: true,
+    redirect: (context, state) {
+      final location = state.uri.path;
+
+      if (location == AppRoutes.splash) {
+        return null;
+      }
+
+      final isAuthRoute =
+          location == AppRoutes.login ||
+          location == AppRoutes.signup ||
+          location == AppRoutes.forgotPassword;
+
+      final token = currentUser?.userToken?.trim() ?? '';
+      final expiry = currentUser?.userTokenExpiry;
+      final isExpired = expiry != null && !expiry.isAfter(DateTime.now());
+      final isAuthenticated = token.isNotEmpty && !isExpired;
+
+      if (!isAuthenticated && !isAuthRoute) {
+        return AppRoutes.login;
+      }
+
+      if (isAuthenticated && isAuthRoute) {
+        return currentUser?.role == 'parent'
+            ? AppRoutes.parentDashboard
+            : AppRoutes.studentDashboard;
+      }
+
+      return null;
+    },
     routes: [
       // Splash Screen
       GoRoute(

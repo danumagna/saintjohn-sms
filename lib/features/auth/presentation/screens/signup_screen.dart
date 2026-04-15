@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:saintjohn_sms_mobile/core/localization/generated/app_localizations.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
@@ -43,7 +42,6 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Future<void> _handleSignUp() async {
-    final l10n = AppLocalizations.of(context)!;
 
     if (!_formKey.currentState!.validate()) return;
     if (!_agreeToTerms) {
@@ -177,7 +175,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(l10n.commonError),
+          content: Text('Something went wrong'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -186,7 +184,6 @@ class _SignupScreenState extends State<SignupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -207,7 +204,7 @@ class _SignupScreenState extends State<SignupScreen> {
               children: [
                 // Title
                 Text(
-                      l10n.authSignUpTitle,
+                      'Create Account',
                       style: const TextStyle(
                         fontFamily: 'Poppins',
                         fontSize: 28,
@@ -240,7 +237,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       const SizedBox(width: AppDimensions.paddingS),
                       Expanded(
                         child: Text(
-                          l10n.authSignUpAsParent,
+                          'Sign up as Parent',
                           style: const TextStyle(
                             fontFamily: 'Poppins',
                             fontSize: 14,
@@ -259,12 +256,12 @@ class _SignupScreenState extends State<SignupScreen> {
                 // Full Name
                 AppTextField(
                       controller: _nameController,
-                      label: l10n.authGuardianNameLabel,
-                      hint: l10n.authGuardianNameHint,
+                      label: 'Parent/Guardian full name',
+                      hint: 'Enter parent/guardian full name',
                       prefixIcon: Iconsax.user,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return l10n.validationRequired;
+                          return 'This field is required';
                         }
                         return null;
                       },
@@ -279,16 +276,16 @@ class _SignupScreenState extends State<SignupScreen> {
                 // Email
                 AppTextField(
                       controller: _emailController,
-                      label: l10n.authGuardianEmailLabel,
-                      hint: l10n.authGuardianEmailHint,
+                      label: 'Parent/Guardian email address',
+                      hint: 'Enter parent/guardian email address',
                       keyboardType: TextInputType.emailAddress,
                       prefixIcon: Iconsax.sms,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return l10n.validationRequired;
+                          return 'This field is required';
                         }
                         if (!value.contains('@')) {
-                          return l10n.validationEmail;
+                          return 'Please enter a valid email';
                         }
                         return null;
                       },
@@ -303,19 +300,19 @@ class _SignupScreenState extends State<SignupScreen> {
                 // Confirm Email
                 AppTextField(
                       controller: _confirmEmailController,
-                      label: l10n.authConfirmEmailLabel,
-                      hint: l10n.authConfirmEmailHint,
+                      label: 'Retype email address',
+                      hint: 'Retype email address',
                       keyboardType: TextInputType.emailAddress,
                       prefixIcon: Iconsax.sms_tracking,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return l10n.validationRequired;
+                          return 'This field is required';
                         }
                         if (!value.contains('@')) {
-                          return l10n.validationEmail;
+                          return 'Please enter a valid email';
                         }
                         if (value.trim() != _emailController.text.trim()) {
-                          return l10n.validationEmailMatch;
+                          return 'Email addresses do not match';
                         }
                         return null;
                       },
@@ -330,13 +327,13 @@ class _SignupScreenState extends State<SignupScreen> {
                 // Phone
                 AppTextField(
                       controller: _phoneController,
-                      label: l10n.authGuardianPhoneLabel,
-                      hint: l10n.authGuardianPhoneHint,
+                      label: 'Parent/Guardian phone number',
+                      hint: 'Enter parent/guardian phone number',
                       keyboardType: TextInputType.phone,
                       prefixIcon: Iconsax.call,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return l10n.validationRequired;
+                          return 'This field is required';
                         }
                         return null;
                       },
@@ -351,16 +348,16 @@ class _SignupScreenState extends State<SignupScreen> {
                 // Password
                 AppTextField(
                       controller: _passwordController,
-                      label: l10n.authPasswordLabel,
-                      hint: l10n.authPasswordHint,
+                      label: 'Password',
+                      hint: 'Enter your password',
                       obscureText: true,
                       prefixIcon: Iconsax.lock,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return l10n.validationRequired;
+                          return 'This field is required';
                         }
                         if (value.length < 8) {
-                          return l10n.validationPasswordMin;
+                          return 'Password must be at least 8 characters';
                         }
                         return null;
                       },
@@ -375,17 +372,17 @@ class _SignupScreenState extends State<SignupScreen> {
                 // Confirm Password
                 AppTextField(
                       controller: _confirmPasswordController,
-                      label: l10n.authRetypePasswordLabel,
-                      hint: l10n.authRetypePasswordHint,
+                      label: 'Retype password',
+                      hint: 'Retype password',
                       obscureText: true,
                       prefixIcon: Iconsax.lock,
                       textInputAction: TextInputAction.done,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return l10n.validationRequired;
+                          return 'This field is required';
                         }
                         if (value != _passwordController.text) {
-                          return l10n.validationPasswordMatch;
+                          return 'Passwords do not match';
                         }
                         return null;
                       },
@@ -413,7 +410,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     const SizedBox(width: AppDimensions.paddingS),
                     Expanded(
                       child: Text(
-                        l10n.authAgreeTerms,
+                        'I agree to the Terms & Conditions',
                         style: const TextStyle(
                           fontFamily: 'Inter',
                           fontSize: 14,
@@ -429,7 +426,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 const SizedBox(height: AppDimensions.paddingXL),
                 // Sign Up Button
                 PrimaryButton(
-                      text: l10n.authSignUp,
+                      text: 'Sign Up',
                       isLoading: _isLoading,
                       onPressed: _handleSignUp,
                     )
@@ -445,7 +442,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      l10n.authHaveAccount,
+                      'Already have an account?',
                       style: const TextStyle(
                         fontFamily: 'Inter',
                         fontSize: 14,
@@ -455,7 +452,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     TextButton(
                       onPressed: () => context.go(AppRoutes.login),
                       child: Text(
-                        l10n.authLogin,
+                        'Login',
                         style: const TextStyle(
                           fontFamily: 'Poppins',
                           fontSize: 14,
@@ -477,3 +474,6 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 }
+
+
+

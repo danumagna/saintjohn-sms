@@ -10,8 +10,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_localizations:
-    sdk: flutter
 
   # State Management
   flutter_riverpod: ^2.6.1
@@ -85,7 +83,6 @@ flutter_launcher_icons:
     image_path: "assets/icons/saintjohnlogo.png"
 
 flutter:
-  generate: true
   uses-material-design: true
 
   assets:

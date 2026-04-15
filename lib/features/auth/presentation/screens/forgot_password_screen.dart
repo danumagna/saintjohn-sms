@@ -3,7 +3,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:saintjohn_sms_mobile/core/localization/generated/app_localizations.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
@@ -85,7 +84,6 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -99,13 +97,13 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppDimensions.paddingL),
-          child: _emailSent ? _buildSuccessState(l10n) : _buildForm(l10n),
+          child: _emailSent ? _buildSuccessState() : _buildForm(),
         ),
       ),
     );
   }
 
-  Widget _buildForm(AppLocalizations l10n) {
+  Widget _buildForm() {
     return Form(
       key: _formKey,
       child: Column(
@@ -134,7 +132,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           const SizedBox(height: AppDimensions.paddingXL),
           // Title
           Text(
-                l10n.authForgotPasswordTitle,
+                'Forgot Password',
                 style: const TextStyle(
                   fontFamily: 'Poppins',
                   fontSize: 28,
@@ -151,7 +149,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           const SizedBox(height: AppDimensions.paddingS),
           // Description
           Text(
-            l10n.authForgotPasswordDesc,
+            'Enter your email address and we\'ll send you a link to reset your password.',
             style: const TextStyle(
               fontFamily: 'Inter',
               fontSize: 14,
@@ -199,17 +197,17 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           // Email Field
           AppTextField(
                 controller: _emailController,
-                label: l10n.authEmailLabel,
-                hint: l10n.authEmailHint,
+                label: 'Email',
+                hint: 'Enter your email',
                 keyboardType: TextInputType.emailAddress,
                 prefixIcon: Iconsax.sms,
                 textInputAction: TextInputAction.done,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return l10n.validationRequired;
+                    return 'This field is required';
                   }
                   if (!value.contains('@')) {
-                    return l10n.validationEmail;
+                    return 'Please enter a valid email';
                   }
                   return null;
                 },
@@ -223,7 +221,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           const SizedBox(height: AppDimensions.paddingXL),
           // Send Reset Link Button
           PrimaryButton(
-                text: l10n.authSendResetLink,
+                text: 'Send Reset Link',
                 isLoading: _isLoading,
                 onPressed: _handleSendResetLink,
               )
@@ -239,7 +237,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             child: TextButton(
               onPressed: () => context.go(AppRoutes.login),
               child: Text(
-                l10n.authBackToLogin,
+                'Back to Login',
                 style: const TextStyle(
                   fontFamily: 'Poppins',
                   fontSize: 14,
@@ -257,7 +255,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     );
   }
 
-  Widget _buildSuccessState(AppLocalizations l10n) {
+  Widget _buildSuccessState() {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -310,7 +308,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         ),
         const SizedBox(height: AppDimensions.paddingXXL),
         PrimaryButton(
-          text: l10n.authBackToLogin,
+          text: 'Back to Login',
           onPressed: () => context.go(AppRoutes.login),
         ).animate().fadeIn(
           delay: const Duration(milliseconds: 400),
@@ -320,3 +318,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     );
   }
 }
+
+
+
+
+
+

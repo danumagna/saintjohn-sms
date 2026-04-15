@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:saintjohn_sms_mobile/core/localization/generated/app_localizations.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
@@ -73,13 +72,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: Text(l10n.notificationsTitle),
+        title: Text('Notifications'),
         leading: IconButton(
           icon: const Icon(Iconsax.arrow_left),
           onPressed: () => context.pop(),
@@ -89,7 +87,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             TextButton(
               onPressed: _markAllAsRead,
               child: Text(
-                l10n.notificationsMarkAllRead,
+                'Mark all as read',
                 style: const TextStyle(
                   fontFamily: 'Poppins',
                   fontSize: 12,
@@ -101,7 +99,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ],
       ),
       body: _notifications.isEmpty
-          ? _buildEmptyState(l10n)
+          ? _buildEmptyState()
           : ListView.builder(
               padding: const EdgeInsets.all(AppDimensions.paddingM),
               itemCount: _notifications.length,
@@ -113,7 +111,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
-  Widget _buildEmptyState(AppLocalizations l10n) {
+  Widget _buildEmptyState() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -132,7 +130,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ),
           const SizedBox(height: AppDimensions.paddingL),
           Text(
-            l10n.notificationsEmpty,
+            'No notifications yet',
             style: const TextStyle(
               fontFamily: 'Inter',
               fontSize: 16,
@@ -279,3 +277,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     });
   }
 }
+
+
+
+

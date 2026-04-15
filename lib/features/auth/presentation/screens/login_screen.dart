@@ -3,7 +3,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:saintjohn_sms_mobile/core/localization/generated/app_localizations.dart';
 
 import '../../../../core/constants/app_assets.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -151,7 +150,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -193,7 +191,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               const SizedBox(height: AppDimensions.paddingL),
               // Title
               Text(
-                    l10n.authLoginTitle,
+                    'Login',
                     style: const TextStyle(
                       fontFamily: 'Poppins',
                       fontSize: 28,
@@ -241,13 +239,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     Tab(
                       child: FittedBox(
                         fit: BoxFit.scaleDown,
-                        child: Text(l10n.authLoginAsStudent),
+                        child: Text('Login as Student'),
                       ),
                     ),
                     Tab(
                       child: FittedBox(
                         fit: BoxFit.scaleDown,
-                        child: Text(l10n.authLoginAsParent),
+                        child: Text('Login as Parent'),
                       ),
                     ),
                   ],
@@ -264,16 +262,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   children: [
                     AppTextField(
                           controller: _emailController,
-                          label: l10n.authEmailLabel,
-                          hint: l10n.authEmailHint,
+                          label: 'Email',
+                          hint: 'Enter your email',
                           keyboardType: TextInputType.emailAddress,
                           prefixIcon: Iconsax.sms,
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return l10n.validationRequired;
+                              return 'This field is required';
                             }
                             if (!value.contains('@')) {
-                              return l10n.validationEmail;
+                              return 'Please enter a valid email';
                             }
                             return null;
                           },
@@ -287,17 +285,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     const SizedBox(height: AppDimensions.paddingM),
                     AppTextField(
                           controller: _passwordController,
-                          label: l10n.authPasswordLabel,
-                          hint: l10n.authPasswordHint,
+                          label: 'Password',
+                          hint: 'Enter your password',
                           obscureText: true,
                           prefixIcon: Iconsax.lock,
                           textInputAction: TextInputAction.done,
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return l10n.validationRequired;
+                              return 'This field is required';
                             }
                             if (value.length < 6) {
-                              return l10n.validationPasswordMin;
+                              return 'Password must be at least 8 characters';
                             }
                             return null;
                           },
@@ -327,7 +325,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                             ),
                             const SizedBox(width: AppDimensions.paddingS),
                             Text(
-                              l10n.authRememberMe,
+                              'Remember me',
                               style: const TextStyle(
                                 fontFamily: 'Inter',
                                 fontSize: 14,
@@ -346,7 +344,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                             );
                           },
                           child: Text(
-                            l10n.authForgotPassword,
+                            'Forgot Password?',
                             style: const TextStyle(
                               fontFamily: 'Poppins',
                               fontSize: 14,
@@ -363,7 +361,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     const SizedBox(height: AppDimensions.paddingXL),
                     // Login Button
                     PrimaryButton(
-                          text: l10n.authLogin,
+                          text: 'Login',
                           isLoading: _isLoading,
                           onPressed: _handleLogin,
                         )
@@ -379,7 +377,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          l10n.authNoAccount,
+                          'Don\'t have an account?',
                           style: const TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 14,
@@ -389,7 +387,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         TextButton(
                           onPressed: () => context.push(AppRoutes.signup),
                           child: Text(
-                            l10n.authSignUp,
+                            'Sign Up',
                             style: const TextStyle(
                               fontFamily: 'Poppins',
                               fontSize: 14,
@@ -413,3 +411,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
   }
 }
+
+
+
+
+

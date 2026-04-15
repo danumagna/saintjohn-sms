@@ -3,7 +3,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:saintjohn_sms_mobile/core/localization/generated/app_localizations.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
@@ -23,7 +22,6 @@ class SettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
     final user =
         ref.watch(currentUserProvider) ??
         (userType == UserType.parent
@@ -41,7 +39,7 @@ class SettingsScreen extends ConsumerWidget {
             children: [
               // Header
               Text(
-                    l10n.settingsTitle,
+                    'Settings',
                     style: const TextStyle(
                       fontFamily: 'Poppins',
                       fontSize: 24,
@@ -139,7 +137,7 @@ class SettingsScreen extends ConsumerWidget {
                 duration: const Duration(milliseconds: 400),
               ),
               MenuListItem(
-                title: l10n.settingsNotifications,
+                title: 'Notifications',
                 icon: Iconsax.notification,
                 trailing: Switch(
                   value: notificationsEnabled,
@@ -165,7 +163,7 @@ class SettingsScreen extends ConsumerWidget {
                 duration: const Duration(milliseconds: 400),
               ),
               MenuListItem(
-                title: l10n.settingsAbout,
+                title: 'About App',
                 subtitle: 'Version 1.0.0',
                 icon: Iconsax.info_circle,
                 onTap: () => _showAboutDialog(context),
@@ -176,11 +174,11 @@ class SettingsScreen extends ConsumerWidget {
               const SizedBox(height: AppDimensions.paddingL),
               // Logout Button
               MenuListItem(
-                title: l10n.settingsLogout,
+                title: 'Log Out',
                 icon: Iconsax.logout,
                 iconColor: AppColors.error,
                 showArrow: false,
-                onTap: () => _showLogoutDialog(context, ref, l10n),
+                onTap: () => _showLogoutDialog(context, ref),
               ).animate().fadeIn(
                 delay: const Duration(milliseconds: 600),
                 duration: const Duration(milliseconds: 400),
@@ -248,7 +246,6 @@ class SettingsScreen extends ConsumerWidget {
   void _showLogoutDialog(
     BuildContext context,
     WidgetRef ref,
-    AppLocalizations l10n,
   ) {
     showDialog(
       context: context,
@@ -287,7 +284,7 @@ class SettingsScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: AppDimensions.paddingM),
                 Text(
-                  l10n.settingsLogout,
+                  'Log Out',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontFamily: 'Poppins',
@@ -298,7 +295,7 @@ class SettingsScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: AppDimensions.paddingS),
                 Text(
-                  l10n.settingsLogoutConfirm,
+                  'Are you sure you want to log out?',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontFamily: 'Inter',
@@ -327,7 +324,7 @@ class SettingsScreen extends ConsumerWidget {
                           ),
                         ),
                         child: Text(
-                          l10n.commonNo,
+                          'No',
                           style: const TextStyle(
                             fontFamily: 'Poppins',
                             fontWeight: FontWeight.w600,
@@ -367,7 +364,7 @@ class SettingsScreen extends ConsumerWidget {
                           ),
                         ),
                         child: Text(
-                          l10n.commonYes,
+                          'Yes',
                           style: const TextStyle(
                             fontFamily: 'Poppins',
                             fontWeight: FontWeight.w700,
@@ -385,3 +382,6 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 }
+
+
+

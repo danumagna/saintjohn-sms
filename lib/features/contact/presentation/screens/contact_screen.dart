@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:saintjohn_sms_mobile/core/localization/generated/app_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/app_colors.dart';
@@ -35,13 +34,12 @@ class _ContactScreenState extends State<ContactScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: Text(l10n.contactTitle),
+        title: Text('Contact Us'),
         leading: IconButton(
           icon: const Icon(Iconsax.arrow_left),
           onPressed: () => context.pop(),
@@ -54,7 +52,7 @@ class _ContactScreenState extends State<ContactScreen> {
           children: [
             // Contact Cards
             Text(
-              l10n.contactReachUs,
+              'Reach Us',
               style: const TextStyle(
                 fontFamily: 'Poppins',
                 fontSize: 18,
@@ -65,7 +63,7 @@ class _ContactScreenState extends State<ContactScreen> {
             const SizedBox(height: AppDimensions.paddingM),
             _buildContactCard(
               icon: Iconsax.location,
-              title: l10n.contactAddress,
+              title: 'Address',
               value:
                   'Jl. Bungur Besar Raya No. 82a - 84, RT.1/RW.7, Gn. Sahari Sel., Kec. Kemayoran, Kota Jakarta Pusat, Daerah Khusus Ibukota Jakarta 10610',
               onTap: () =>
@@ -73,7 +71,7 @@ class _ContactScreenState extends State<ContactScreen> {
             ),
             _buildContactCard(
               icon: Iconsax.call,
-              title: l10n.contactPhone,
+              title: 'Phone',
               value: '+62 21 1234 5678',
               onTap: () => _launchUrl(
                 'tel:+622112345678',
@@ -82,7 +80,7 @@ class _ContactScreenState extends State<ContactScreen> {
             ),
             _buildContactCard(
               icon: Iconsax.sms,
-              title: l10n.contactEmail,
+              title: 'Email',
               value: 'info@saintjohnschool.edu',
               onTap: () => _launchUrl(
                 'mailto:info@saintjohnschool.edu',
@@ -91,7 +89,7 @@ class _ContactScreenState extends State<ContactScreen> {
             ),
             _buildContactCard(
               icon: Iconsax.clock,
-              title: l10n.contactOfficeHours,
+              title: 'Office Hours',
               value: 'Monday - Friday\n06:30 - 18:00 WIB',
               onTap: null,
             ),
@@ -172,3 +170,6 @@ class _ContactScreenState extends State<ContactScreen> {
         .slideY(begin: 0.1, end: 0);
   }
 }
+
+
+

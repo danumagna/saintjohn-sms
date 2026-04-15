@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:saintjohn_sms_mobile/core/localization/generated/app_localizations.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
@@ -62,7 +61,6 @@ class _AttendanceReportScreenState extends State<AttendanceReportScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
 
     final present = _records.where((r) => r.status == 'present').length;
     final absent = _records.where((r) => r.status == 'absent').length;
@@ -75,7 +73,7 @@ class _AttendanceReportScreenState extends State<AttendanceReportScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: Text(l10n.reportAttendance),
+        title: Text('Attendance Report'),
         leading: IconButton(
           icon: const Icon(Iconsax.arrow_left),
           onPressed: () => context.pop(),
@@ -101,7 +99,7 @@ class _AttendanceReportScreenState extends State<AttendanceReportScreen> {
                 child: Column(
                   children: [
                     Text(
-                      l10n.reportAttendanceRate,
+                      'Attendance Rate',
                       style: TextStyle(
                         fontFamily: 'Inter',
                         fontSize: 14,
@@ -123,22 +121,22 @@ class _AttendanceReportScreenState extends State<AttendanceReportScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
                         _buildSummaryChip(
-                          l10n.reportPresent,
+                          'Present',
                           present,
                           AppColors.success,
                         ),
                         _buildSummaryChip(
-                          l10n.reportAbsent,
+                          'Absent',
                           absent,
                           AppColors.error,
                         ),
                         _buildSummaryChip(
-                          l10n.reportLate,
+                          'Late',
                           late,
                           AppColors.warning,
                         ),
                         _buildSummaryChip(
-                          l10n.reportExcused,
+                          'Excused',
                           excused,
                           AppColors.info,
                         ),
@@ -366,3 +364,6 @@ class _AttendanceReportScreenState extends State<AttendanceReportScreen> {
         .slideX(begin: 0.05, end: 0);
   }
 }
+
+
+

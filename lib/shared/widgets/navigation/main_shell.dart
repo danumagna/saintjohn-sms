@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:saintjohn_sms_mobile/core/localization/generated/app_localizations.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_dimensions.dart';
@@ -23,7 +22,6 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       body: widget.child,
@@ -50,14 +48,14 @@ class _MainShellState extends State<MainShell> {
                 _buildNavItem(
                   icon: Iconsax.home,
                   activeIcon: Iconsax.home_15,
-                  label: l10n.dashboardTitle,
+                  label: 'Dashboard',
                   index: 0,
                   onTap: () => _onItemTapped(0, context),
                 ),
                 _buildNavItem(
                   icon: Iconsax.setting_2,
                   activeIcon: Iconsax.setting,
-                  label: l10n.settingsTitle,
+                  label: 'Settings',
                   index: 1,
                   onTap: () => _onItemTapped(1, context),
                 ),
@@ -140,3 +138,6 @@ class _MainShellState extends State<MainShell> {
     }
   }
 }
+
+
+

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:saintjohn_sms_mobile/core/localization/generated/app_localizations.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
@@ -32,7 +31,6 @@ class StudentProgressScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
 
     final subjects = [
       const SubjectProgress(
@@ -93,7 +91,7 @@ class StudentProgressScreen extends StatelessWidget {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: Text(l10n.reportProgress),
+        title: Text('Student Progress'),
         leading: IconButton(
           icon: const Icon(Iconsax.arrow_left),
           onPressed: () => context.pop(),
@@ -154,7 +152,7 @@ class StudentProgressScreen extends StatelessWidget {
                                   ),
                                 ),
                                 Text(
-                                  l10n.reportOverall,
+                                  'Overall',
                                   style: TextStyle(
                                     fontFamily: 'Inter',
                                     fontSize: 10,
@@ -175,7 +173,7 @@ class StudentProgressScreen extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              l10n.reportAcademicProgress,
+                              'Academic Progress',
                               style: const TextStyle(
                                 fontFamily: 'Poppins',
                                 fontSize: 16,
@@ -187,11 +185,11 @@ class StudentProgressScreen extends StatelessWidget {
                             Row(
                               children: [
                                 _buildStatItem(
-                                  l10n.reportSubjects,
+                                  'Subjects',
                                   '${subjects.length}',
                                 ),
                                 const SizedBox(width: AppDimensions.paddingL),
-                                _buildStatItem(l10n.reportAvgGrade, 'A'),
+                                _buildStatItem('Avg Grade', 'A'),
                               ],
                             ),
                           ],
@@ -206,7 +204,7 @@ class StudentProgressScreen extends StatelessWidget {
             const SizedBox(height: AppDimensions.paddingXL),
             // Subject Progress
             Text(
-              l10n.reportSubjectProgress,
+              'Subject Progress',
               style: const TextStyle(
                 fontFamily: 'Poppins',
                 fontSize: 18,
@@ -219,12 +217,12 @@ class StudentProgressScreen extends StatelessWidget {
             ),
             const SizedBox(height: AppDimensions.paddingM),
             ...subjects.asMap().entries.map((entry) {
-              return _buildSubjectCard(entry.value, entry.key, l10n);
+              return _buildSubjectCard(entry.value, entry.key);
             }),
             const SizedBox(height: AppDimensions.paddingL),
             // Achievements Section
             Text(
-              l10n.reportAchievements,
+              'Achievements',
               style: const TextStyle(
                 fontFamily: 'Poppins',
                 fontSize: 18,
@@ -241,7 +239,7 @@ class StudentProgressScreen extends StatelessWidget {
                 Expanded(
                   child: _buildAchievementCard(
                     icon: Iconsax.medal_star,
-                    title: l10n.reportTopPerformer,
+                    title: 'Top Performer',
                     subtitle: 'Biology',
                     color: Colors.amber,
                   ),
@@ -250,7 +248,7 @@ class StudentProgressScreen extends StatelessWidget {
                 Expanded(
                   child: _buildAchievementCard(
                     icon: Iconsax.trend_up,
-                    title: l10n.reportMostImproved,
+                    title: 'Most Improved',
                     subtitle: 'Chemistry',
                     color: AppColors.success,
                   ),
@@ -294,7 +292,6 @@ class StudentProgressScreen extends StatelessWidget {
   Widget _buildSubjectCard(
     SubjectProgress subject,
     int index,
-    AppLocalizations l10n,
   ) {
     return Card(
           elevation: AppDimensions.elevationS,
@@ -344,7 +341,7 @@ class StudentProgressScreen extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            '${subject.completedTopics}/${subject.totalTopics} ${l10n.reportTopics}',
+                            '${subject.completedTopics}/${subject.totalTopics} ${'topics'}',
                             style: const TextStyle(
                               fontFamily: 'Inter',
                               fontSize: 12,
@@ -465,3 +462,6 @@ class StudentProgressScreen extends StatelessWidget {
     );
   }
 }
+
+
+

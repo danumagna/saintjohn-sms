@@ -3,7 +3,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:saintjohn_sms_mobile/core/localization/generated/app_localizations.dart';
 
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/constants/app_dimensions.dart';
@@ -19,11 +18,10 @@ class ParentDashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
     final user =
         ref.watch(currentUserProvider) ?? DummyUsers.getDefaultParent();
     final firstName = user.fullName.trim().isEmpty
-        ? l10n.authLoginAsParent
+        ? 'Login as Parent'
         : user.fullName.trim().split(RegExp(r'\s+')).first;
 
     return Scaffold(
@@ -58,7 +56,7 @@ class ParentDashboardScreen extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                                l10n.dashboardWelcome(firstName),
+                                'Welcome, $firstName',
                                 style: const TextStyle(
                                   fontFamily: 'Poppins',
                                   fontSize: 18,
@@ -73,7 +71,7 @@ class ParentDashboardScreen extends ConsumerWidget {
                               )
                               .slideX(begin: 0.1, end: 0),
                           Text(
-                            l10n.authLoginAsParent,
+                            'Login as Parent',
                             style: const TextStyle(
                               fontFamily: 'Inter',
                               fontSize: 13,
@@ -140,15 +138,15 @@ class ParentDashboardScreen extends ConsumerWidget {
                 delegate: SliverChildListDelegate([
                   // Students Menu
                   MenuCard(
-                    title: l10n.menuStudents,
+                    title: 'Students',
                     icon: Iconsax.people,
                     iconColor: AppColors.primary,
                     index: 0,
-                    onTap: () => _showStudentsBottomSheet(context, l10n),
+                    onTap: () => _showStudentsBottomSheet(context),
                   ),
                   // Guide Menu
                   MenuCard(
-                    title: l10n.menuGuide,
+                    title: 'Guide',
                     icon: Iconsax.book,
                     iconColor: AppColors.info,
                     index: 1,
@@ -156,7 +154,7 @@ class ParentDashboardScreen extends ConsumerWidget {
                   ),
                   // Contact Us Menu
                   MenuCard(
-                    title: l10n.menuContactUs,
+                    title: 'Contact Us',
                     icon: Iconsax.call,
                     iconColor: AppColors.success,
                     index: 2,
@@ -174,7 +172,7 @@ class ParentDashboardScreen extends ConsumerWidget {
     );
   }
 
-  void _showStudentsBottomSheet(BuildContext context, AppLocalizations l10n) {
+  void _showStudentsBottomSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -197,7 +195,7 @@ class ParentDashboardScreen extends ConsumerWidget {
             ),
             const SizedBox(height: AppDimensions.paddingL),
             Text(
-              l10n.menuStudents,
+              'Students',
               style: const TextStyle(
                 fontFamily: 'Poppins',
                 fontSize: 18,
@@ -216,7 +214,7 @@ class ParentDashboardScreen extends ConsumerWidget {
                 child: const Icon(Iconsax.add_circle, color: AppColors.primary),
               ),
               title: Text(
-                l10n.menuStudentRegistration,
+                'Registration',
                 style: const TextStyle(
                   fontFamily: 'Inter',
                   fontSize: 16,
@@ -243,7 +241,7 @@ class ParentDashboardScreen extends ConsumerWidget {
                 child: const Icon(Iconsax.people, color: AppColors.secondary),
               ),
               title: Text(
-                l10n.menuStudentList,
+                'Student List',
                 style: const TextStyle(
                   fontFamily: 'Inter',
                   fontSize: 16,

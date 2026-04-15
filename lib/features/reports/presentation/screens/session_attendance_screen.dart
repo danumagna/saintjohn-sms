@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:saintjohn_sms_mobile/core/localization/generated/app_localizations.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
@@ -24,13 +23,12 @@ class SessionAttendanceItem {
   });
 }
 
-/// Session Attendance screen showing today's class attendance.
+/// Session Attendance screen showing today\'s class attendance.
 class SessionAttendanceScreen extends StatelessWidget {
   const SessionAttendanceScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
 
     final sessions = [
       const SessionAttendanceItem(
@@ -70,7 +68,7 @@ class SessionAttendanceScreen extends StatelessWidget {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: Text(l10n.reportSessionAttendance),
+        title: Text('Session Attendance'),
         leading: IconButton(
           icon: const Icon(Iconsax.arrow_left),
           onPressed: () => context.pop(),
@@ -100,7 +98,7 @@ class SessionAttendanceScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            l10n.reportTodayAttendance,
+                            'Today\'s Attendance',
                             style: TextStyle(
                               fontFamily: 'Inter',
                               fontSize: 14,
@@ -174,7 +172,7 @@ class SessionAttendanceScreen extends StatelessWidget {
               itemCount: sessions.length,
               itemBuilder: (context, index) {
                 final session = sessions[index];
-                return _buildSessionCard(session, index, l10n);
+                return _buildSessionCard(session, index);
               },
             ),
           ),
@@ -186,7 +184,6 @@ class SessionAttendanceScreen extends StatelessWidget {
   Widget _buildSessionCard(
     SessionAttendanceItem session,
     int index,
-    AppLocalizations l10n,
   ) {
     Color statusColor;
     IconData statusIcon;
@@ -197,25 +194,25 @@ class SessionAttendanceScreen extends StatelessWidget {
       case 'present':
         statusColor = AppColors.success;
         statusIcon = Iconsax.tick_circle;
-        statusText = l10n.reportPresent;
+        statusText = 'Present';
         cardBorderColor = Colors.transparent;
         break;
       case 'absent':
         statusColor = AppColors.error;
         statusIcon = Iconsax.close_circle;
-        statusText = l10n.reportAbsent;
+        statusText = 'Absent';
         cardBorderColor = Colors.transparent;
         break;
       case 'ongoing':
         statusColor = AppColors.info;
         statusIcon = Iconsax.play_circle;
-        statusText = l10n.reportOngoing;
+        statusText = 'Ongoing';
         cardBorderColor = AppColors.info;
         break;
       case 'upcoming':
         statusColor = AppColors.textTertiary;
         statusIcon = Iconsax.clock;
-        statusText = l10n.reportUpcoming;
+        statusText = 'Upcoming';
         cardBorderColor = Colors.transparent;
         break;
       default:
@@ -362,3 +359,8 @@ class SessionAttendanceScreen extends StatelessWidget {
         .slideX(begin: 0.1, end: 0);
   }
 }
+
+
+
+
+

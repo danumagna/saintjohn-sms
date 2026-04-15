@@ -7,7 +7,6 @@ import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:saintjohn_sms_mobile/core/localization/generated/app_localizations.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
@@ -192,7 +191,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _handleSave() async {
-    final l10n = AppLocalizations.of(context)!;
     final user = ref.read(currentUserProvider);
     if (!_formKey.currentState!.validate()) return;
     if (user == null) return;
@@ -278,7 +276,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(l10n.commonError),
+          content: Text('Something went wrong'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -321,7 +319,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final user = ref.watch(currentUserProvider);
 
     if (user == null) {
@@ -329,7 +326,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         backgroundColor: AppColors.background,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
-          title: Text(l10n.settingsMyProfile),
+          title: Text('My Profile'),
           leading: IconButton(
             icon: const Icon(Iconsax.arrow_left),
             onPressed: () => context.pop(),
@@ -339,7 +336,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           child: Padding(
             padding: const EdgeInsets.all(AppDimensions.paddingL),
             child: Text(
-              l10n.commonError,
+              'Something went wrong',
               style: const TextStyle(
                 fontFamily: 'Inter',
                 fontSize: 14,
@@ -356,7 +353,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: Text(l10n.settingsMyProfile),
+        title: Text('My Profile'),
         leading: IconButton(
           icon: const Icon(Iconsax.arrow_left),
           onPressed: () => context.pop(),
@@ -412,12 +409,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 const SizedBox(height: AppDimensions.paddingXL),
                 AppTextField(
                       controller: _nameController,
-                      label: l10n.authGuardianNameLabel,
-                      hint: l10n.authGuardianNameHint,
+                      label: 'Parent/Guardian full name',
+                      hint: 'Enter parent/guardian full name',
                       prefixIcon: Iconsax.user,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return l10n.validationRequired;
+                          return 'This field is required';
                         }
                         return null;
                       },
@@ -431,16 +428,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 const SizedBox(height: AppDimensions.paddingM),
                 AppTextField(
                       controller: _emailController,
-                      label: l10n.authGuardianEmailLabel,
-                      hint: l10n.authGuardianEmailHint,
+                      label: 'Parent/Guardian email address',
+                      hint: 'Enter parent/guardian email address',
                       keyboardType: TextInputType.emailAddress,
                       prefixIcon: Iconsax.sms,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return l10n.validationRequired;
+                          return 'This field is required';
                         }
                         if (!value.contains('@')) {
-                          return l10n.validationEmail;
+                          return 'Please enter a valid email';
                         }
                         return null;
                       },
@@ -454,13 +451,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 const SizedBox(height: AppDimensions.paddingM),
                 AppTextField(
                       controller: _phoneController,
-                      label: l10n.authGuardianPhoneLabel,
-                      hint: l10n.authGuardianPhoneHint,
+                      label: 'Parent/Guardian phone number',
+                      hint: 'Enter parent/guardian phone number',
                       keyboardType: TextInputType.phone,
                       prefixIcon: Iconsax.call,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return l10n.validationRequired;
+                          return 'This field is required';
                         }
                         return null;
                       },
@@ -474,14 +471,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 const SizedBox(height: AppDimensions.paddingM),
                 AppTextField(
                       controller: _birthDateController,
-                      label: l10n.studentsBirthDate,
-                      hint: l10n.studentsBirthDateHint,
+                      label: 'Birth Date',
+                      hint: 'Select birth date',
                       readOnly: true,
                       prefixIcon: Iconsax.calendar,
                       onTap: _selectBirthDate,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return l10n.validationRequired;
+                          return 'This field is required';
                         }
                         return null;
                       },
@@ -500,7 +497,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       prefixIcon: Iconsax.location,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return l10n.validationRequired;
+                          return 'This field is required';
                         }
                         return null;
                       },
@@ -514,13 +511,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 const SizedBox(height: AppDimensions.paddingM),
                 AppTextField(
                       controller: _addressController,
-                      label: l10n.studentsAddress,
-                      hint: l10n.studentsAddressHint,
+                      label: 'Address',
+                      hint: 'Enter student address',
                       prefixIcon: Iconsax.location,
                       maxLines: 2,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return l10n.validationRequired;
+                          return 'This field is required';
                         }
                         return null;
                       },
@@ -539,7 +536,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       prefixIcon: Iconsax.global,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return l10n.validationRequired;
+                          return 'This field is required';
                         }
                         return null;
                       },
@@ -558,7 +555,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       prefixIcon: Iconsax.book,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return l10n.validationRequired;
+                          return 'This field is required';
                         }
                         return null;
                       },
@@ -587,7 +584,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           top: false,
           child:
               PrimaryButton(
-                text: l10n.commonSave,
+                text: 'Save',
                 isLoading: _isLoading,
                 onPressed: _handleSave,
               ).animate().fadeIn(
@@ -599,3 +596,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 }
+
+
+

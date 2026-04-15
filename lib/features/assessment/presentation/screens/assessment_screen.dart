@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:saintjohn_sms_mobile/core/localization/generated/app_localizations.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
@@ -105,13 +104,12 @@ class _AssessmentScreenState extends State<AssessmentScreen>
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: Text(l10n.assessmentTitle),
+        title: Text('Assessment'),
         leading: IconButton(
           icon: const Icon(Iconsax.arrow_left),
           onPressed: () => context.pop(),
@@ -126,9 +124,9 @@ class _AssessmentScreenState extends State<AssessmentScreen>
             fontWeight: FontWeight.w600,
           ),
           tabs: [
-            Tab(text: l10n.assessmentAll),
-            Tab(text: l10n.assessmentExams),
-            Tab(text: l10n.assessmentAssignments),
+            Tab(text: 'All'),
+            Tab(text: 'Exams'),
+            Tab(text: 'Assignments'),
           ],
         ),
       ),
@@ -152,14 +150,14 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildSummaryItem(l10n.assessmentAverage, '85.3', 'A'),
+                    _buildSummaryItem('Average', '85.3', 'A'),
                     Container(
                       width: 1,
                       height: 50,
                       color: AppColors.textOnPrimary.withValues(alpha: 0.3),
                     ),
                     _buildSummaryItem(
-                      l10n.assessmentTotal,
+                      'Total',
                       '${_assessments.length}',
                       '',
                     ),
@@ -168,7 +166,7 @@ class _AssessmentScreenState extends State<AssessmentScreen>
                       height: 50,
                       color: AppColors.textOnPrimary.withValues(alpha: 0.3),
                     ),
-                    _buildSummaryItem(l10n.assessmentRank, '5', '/30'),
+                    _buildSummaryItem('Rank', '5', '/30'),
                   ],
                 ),
               )
@@ -411,3 +409,6 @@ class _AssessmentScreenState extends State<AssessmentScreen>
         .slideX(begin: 0.1, end: 0);
   }
 }
+
+
+

@@ -20,9 +20,6 @@ final userTypeProvider = Provider<UserType?>((ref) {
   return user.role == 'parent' ? UserType.parent : UserType.student;
 });
 
-/// Locale provider for internationalization.
-final localeProvider = StateProvider<String>((ref) => 'en');
-
 /// Theme mode provider (for future dark mode support).
 final themeModeProvider = StateProvider<bool>((ref) => false);
 

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:saintjohn_sms_mobile/core/localization/generated/app_localizations.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
@@ -34,7 +33,6 @@ class ExamScheduleScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
 
     final today = DateTime.now();
 
@@ -98,7 +96,7 @@ class ExamScheduleScreen extends StatelessWidget {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: Text(l10n.reportExamSchedule),
+        title: Text('Exam Schedule'),
         leading: IconButton(
           icon: const Icon(Iconsax.arrow_left),
           onPressed: () => context.pop(),
@@ -109,7 +107,7 @@ class ExamScheduleScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Today's Exams
+            // Today\'s Exams
             if (todayExams.isNotEmpty) ...[
               Container(
                     padding: const EdgeInsets.all(AppDimensions.paddingM),
@@ -141,7 +139,7 @@ class ExamScheduleScreen extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                l10n.reportTodayExams,
+                                'Today\'s Exams',
                                 style: TextStyle(
                                   fontFamily: 'Inter',
                                   fontSize: 12,
@@ -171,7 +169,7 @@ class ExamScheduleScreen extends StatelessWidget {
                   .slideY(begin: -0.2, end: 0),
               const SizedBox(height: AppDimensions.paddingL),
               Text(
-                l10n.reportTodayExams,
+                'Today\'s Exams',
                 style: const TextStyle(
                   fontFamily: 'Poppins',
                   fontSize: 16,
@@ -191,7 +189,7 @@ class ExamScheduleScreen extends StatelessWidget {
             if (upcomingExams.isNotEmpty) ...[
               const SizedBox(height: AppDimensions.paddingL),
               Text(
-                l10n.reportUpcomingExams,
+                'Upcoming Exams',
                 style: const TextStyle(
                   fontFamily: 'Poppins',
                   fontSize: 16,
@@ -231,7 +229,7 @@ class ExamScheduleScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: AppDimensions.paddingL),
                     Text(
-                      l10n.reportNoExams,
+                      'No exams scheduled',
                       style: const TextStyle(
                         fontFamily: 'Inter',
                         fontSize: 16,
@@ -417,3 +415,8 @@ class ExamScheduleScreen extends StatelessWidget {
         .slideX(begin: 0.1, end: 0);
   }
 }
+
+
+
+
+

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:saintjohn_sms_mobile/core/localization/generated/app_localizations.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../../../../core/constants/app_colors.dart';
@@ -114,14 +113,13 @@ class _AcademicCalendarScreenState extends State<AcademicCalendarScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final selectedEvents = _getEventsForDay(_selectedDay ?? _focusedDay);
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: Text(l10n.calendarTitle),
+        title: Text('Academic Calendar'),
         leading: IconButton(
           icon: const Icon(Iconsax.arrow_left),
           onPressed: () => context.pop(),
@@ -264,7 +262,7 @@ class _AcademicCalendarScreenState extends State<AcademicCalendarScreen> {
                         ),
                         const SizedBox(height: AppDimensions.paddingM),
                         Text(
-                          l10n.calendarNoEvents,
+                          'No events for this day',
                           style: const TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 14,
@@ -402,3 +400,6 @@ class _AcademicCalendarScreenState extends State<AcademicCalendarScreen> {
         .slideX(begin: 0.1, end: 0);
   }
 }
+
+
+

@@ -5,7 +5,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:saintjohn_sms_mobile/core/localization/generated/app_localizations.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
@@ -124,14 +123,13 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final studentsAsync = ref.watch(studentsProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: Text(l10n.studentsListTitle),
+        title: Text('Student List'),
         actions: [
           PopupMenuButton<StudentSortField>(
             tooltip: 'Urutkan',
@@ -181,7 +179,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
             padding: const EdgeInsets.all(AppDimensions.paddingM),
             child: AppTextField(
               controller: _searchController,
-              hint: l10n.studentsSearchHint,
+              hint: 'Search by name',
               prefixIcon: Iconsax.search_normal,
               textInputAction: TextInputAction.done,
               onChanged: _filterStudents,
@@ -246,7 +244,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                 final sortedStudents = _sortStudents(filteredStudents);
 
                 if (sortedStudents.isEmpty) {
-                  return _buildEmptyState(l10n);
+                  return _buildEmptyState();
                 }
 
                 return RefreshIndicator(
@@ -269,7 +267,6 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
               },
               loading: () => _buildLoadingState(),
               error: (error, _) => _buildErrorState(
-                l10n: l10n,
                 message: error.toString(),
                 onRetry: () {
                   ref.read(studentsProvider.notifier).refreshStudents();
@@ -309,7 +306,6 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
   }
 
   Widget _buildErrorState({
-    required AppLocalizations l10n,
     required String message,
     required VoidCallback onRetry,
   }) {
@@ -331,14 +327,14 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
               ),
             ),
             const SizedBox(height: AppDimensions.paddingM),
-            ElevatedButton(onPressed: onRetry, child: Text(l10n.commonRetry)),
+            ElevatedButton(onPressed: onRetry, child: Text('Retry')),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildEmptyState(AppLocalizations l10n) {
+  Widget _buildEmptyState() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -357,7 +353,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
           ),
           const SizedBox(height: AppDimensions.paddingL),
           Text(
-            l10n.studentsEmptyState,
+            'No students found',
             style: const TextStyle(
               fontFamily: 'Inter',
               fontSize: 16,
@@ -704,3 +700,7 @@ enum StudentSortField {
   className,
   status,
 }
+
+
+
+

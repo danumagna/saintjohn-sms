@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:saintjohn_sms_mobile/core/localization/generated/app_localizations.dart';
 
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/constants/app_dimensions.dart';
@@ -130,11 +129,10 @@ class _StudentDashboardScreenState
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final user =
         ref.watch(currentUserProvider) ?? DummyUsers.getDefaultStudent();
     final firstName = user.fullName.trim().isEmpty
-        ? l10n.authLoginAsStudent
+        ? 'Login as Student'
         : user.fullName.trim().split(RegExp(r'\s+')).first;
 
     return Scaffold(
@@ -171,7 +169,7 @@ class _StudentDashboardScreenState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                              l10n.dashboardWelcome(firstName),
+                              'Welcome, $firstName',
                               style: const TextStyle(
                                 fontFamily: 'Poppins',
                                 fontSize: 16,
@@ -187,8 +185,8 @@ class _StudentDashboardScreenState
                             .slideX(begin: 0.1, end: 0),
                         Text(
                           (user.schoolName?.trim().isNotEmpty ?? false)
-                              ? '${user.className ?? l10n.authLoginAsStudent} • ${user.schoolName!.trim()}'
-                              : (user.className ?? l10n.authLoginAsStudent),
+                              ? '${user.className ?? 'Login as Student'} • ${user.schoolName!.trim()}'
+                              : (user.className ?? 'Login as Student'),
                           style: const TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 12,
@@ -253,7 +251,7 @@ class _StudentDashboardScreenState
                 child: Column(
                   children: [
                     _buildSectionHeader(
-                      title: l10n.dashboardSummarySectionTitle,
+                      title: 'Today Summary',
                       icon: Iconsax.chart,
                       color: AppColors.info,
                     ),
@@ -271,7 +269,7 @@ class _StudentDashboardScreenState
                           icon: Iconsax.chart_2,
                           iconColor: AppColors.secondary,
                           value: '85.5',
-                          label: l10n.dashboardAverageScore,
+                          label: 'Avg. Score',
                           index: 0,
                           onTap: () => context.push(AppRoutes.assessment),
                         ),
@@ -279,7 +277,7 @@ class _StudentDashboardScreenState
                           icon: Iconsax.calendar,
                           iconColor: AppColors.schedule,
                           value: '6',
-                          label: l10n.dashboardClassesToday,
+                          label: 'Classes Today',
                           index: 1,
                           onTap: () => context.push(AppRoutes.schedule),
                         ),
@@ -287,7 +285,7 @@ class _StudentDashboardScreenState
                           icon: Iconsax.calendar_2,
                           iconColor: AppColors.warning,
                           value: '3',
-                          label: l10n.menuAcademicCalendar,
+                          label: 'Academic Calendar',
                           index: 2,
                           onTap: () => context.push(AppRoutes.academicCalendar),
                         ),
@@ -295,7 +293,7 @@ class _StudentDashboardScreenState
                           icon: Iconsax.user_tick,
                           iconColor: AppColors.success,
                           value: '95%',
-                          label: l10n.dashboardAttendanceRate,
+                          label: 'Attendance Rate',
                           index: 3,
                           onTap: () => context.push(AppRoutes.attendanceReport),
                         ),
@@ -303,7 +301,7 @@ class _StudentDashboardScreenState
                           icon: Iconsax.note,
                           iconColor: AppColors.success,
                           value: '2',
-                          label: l10n.dashboardExamsToday,
+                          label: 'Exams Today',
                           index: 4,
                           onTap: () => context.push(AppRoutes.examSchedule),
                         ),
@@ -311,7 +309,7 @@ class _StudentDashboardScreenState
                           icon: Iconsax.clock,
                           iconColor: AppColors.success,
                           value: '4/5',
-                          label: l10n.dashboardSessionsAttended,
+                          label: 'Sessions Attended',
                           index: 5,
                           onTap: () =>
                               context.push(AppRoutes.sessionAttendance),
@@ -320,7 +318,7 @@ class _StudentDashboardScreenState
                           icon: Iconsax.trend_up,
                           iconColor: AppColors.success,
                           value: '78%',
-                          label: l10n.dashboardOverallProgress,
+                          label: 'Overall Progress',
                           index: 6,
                           onTap: () => context.push(AppRoutes.studentProgress),
                         ),
@@ -331,7 +329,7 @@ class _StudentDashboardScreenState
               ),
               const SizedBox(height: AppDimensions.paddingS),
               _buildSectionHeader(
-                title: l10n.dashboardMainMenuSectionTitle,
+                title: 'Main Menu',
                 icon: Iconsax.element_4,
                 color: AppColors.primary,
               ),
@@ -346,32 +344,32 @@ class _StudentDashboardScreenState
                   childAspectRatio: 1.0,
                   children: [
                     MenuCard(
-                      title: l10n.menuAssessment,
+                      title: 'Assessment',
                       icon: Iconsax.chart_2,
                       iconColor: AppColors.secondary,
                       index: 0,
                       onTap: () => context.push(AppRoutes.assessment),
                     ),
                     MenuCard(
-                      title: l10n.menuSchedule,
+                      title: 'Class Schedule',
                       icon: Iconsax.calendar,
                       iconColor: AppColors.schedule,
                       index: 1,
                       onTap: () => context.push(AppRoutes.schedule),
                     ),
                     MenuCard(
-                      title: l10n.menuAcademicCalendar,
+                      title: 'Academic Calendar',
                       icon: Iconsax.calendar_2,
                       iconColor: AppColors.warning,
                       index: 2,
                       onTap: () => context.push(AppRoutes.academicCalendar),
                     ),
                     MenuCard(
-                      title: l10n.menuReports,
+                      title: 'Reports',
                       icon: Iconsax.document_text,
                       iconColor: AppColors.success,
                       index: 3,
-                      onTap: () => _showReportsBottomSheet(context, l10n),
+                      onTap: () => _showReportsBottomSheet(context),
                     ),
                   ],
                 ),
@@ -383,7 +381,7 @@ class _StudentDashboardScreenState
     );
   }
 
-  void _showReportsBottomSheet(BuildContext context, AppLocalizations l10n) {
+  void _showReportsBottomSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -406,7 +404,7 @@ class _StudentDashboardScreenState
             ),
             const SizedBox(height: AppDimensions.paddingL),
             Text(
-              l10n.menuReports,
+              'Reports',
               style: const TextStyle(
                 fontFamily: 'Poppins',
                 fontSize: 18,
@@ -419,7 +417,7 @@ class _StudentDashboardScreenState
             _buildReportItem(
               context: context,
               icon: Iconsax.user_tick,
-              title: l10n.menuAttendance,
+              title: 'Student Attendance',
               color: AppColors.success,
               onTap: () {
                 Navigator.pop(context);
@@ -430,7 +428,7 @@ class _StudentDashboardScreenState
             _buildReportItem(
               context: context,
               icon: Iconsax.note,
-              title: l10n.menuExamSchedule,
+              title: 'Today\'s Exam Schedule',
               color: AppColors.warning,
               onTap: () {
                 Navigator.pop(context);
@@ -441,7 +439,7 @@ class _StudentDashboardScreenState
             _buildReportItem(
               context: context,
               icon: Iconsax.clock,
-              title: l10n.menuSessionAttendance,
+              title: 'Session Attendance Today',
               color: AppColors.info,
               onTap: () {
                 Navigator.pop(context);
@@ -452,7 +450,7 @@ class _StudentDashboardScreenState
             _buildReportItem(
               context: context,
               icon: Iconsax.trend_up,
-              title: l10n.menuStudentProgress,
+              title: 'Student Progress',
               color: AppColors.primary,
               onTap: () {
                 Navigator.pop(context);

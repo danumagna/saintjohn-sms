@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 import 'package:shimmer/shimmer.dart';
-import 'package:saintjohn_sms_mobile/core/localization/generated/app_localizations.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
@@ -514,14 +513,13 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final progress = (_currentStep + 1) / 3;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: Text(l10n.studentsRegistrationTitle),
+        title: Text('Student Registration'),
         leading: IconButton(
           icon: const Icon(Iconsax.arrow_left),
           onPressed: () => context.pop(),
@@ -558,7 +556,7 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
               const SizedBox(height: AppDimensions.paddingL),
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 250),
-                child: _buildStepContent(l10n),
+                child: _buildStepContent(),
               ),
             ],
           ),
@@ -567,14 +565,14 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
     );
   }
 
-  Widget _buildStepContent(AppLocalizations l10n) {
+  Widget _buildStepContent() {
     switch (_currentStep) {
       case 0:
         return _buildInfoStepOne();
       case 1:
         return _buildInfoStepTwo();
       default:
-        return _buildRegistrationForm(l10n);
+        return _buildRegistrationForm();
     }
   }
 
@@ -1014,7 +1012,7 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
     );
   }
 
-  Widget _buildRegistrationForm(AppLocalizations l10n) {
+  Widget _buildRegistrationForm() {
     final mastersAsync = ref.watch(studentRegistrationMastersProvider);
     final masters = mastersAsync.asData?.value;
     final isMastersLoading = mastersAsync.isLoading && masters == null;
@@ -1102,7 +1100,7 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
               ],
               validator: (value) {
                 if (value == null || value.isEmpty) {
-                  return l10n.validationRequired;
+                  return 'This field is required';
                 }
                 if (value.length != 16) {
                   return 'Nomor Kartu Keluarga harus 16 digit';
@@ -1123,7 +1121,7 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
               ],
               validator: (value) {
                 if (value == null || value.isEmpty) {
-                  return l10n.validationRequired;
+                  return 'This field is required';
                 }
                 if (value.length != 16) {
                   return 'NIK harus 16 digit';
@@ -1148,7 +1146,7 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
               prefixIcon: Iconsax.user,
               validator: (value) {
                 if (value == null || value.isEmpty) {
-                  return l10n.validationRequired;
+                  return 'This field is required';
                 }
                 return null;
               },
@@ -1163,7 +1161,7 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
               onTap: _selectBirthDate,
               validator: (value) {
                 if (value == null || value.isEmpty) {
-                  return l10n.validationRequired;
+                  return 'This field is required';
                 }
                 return null;
               },
@@ -1244,7 +1242,7 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
               keyboardType: TextInputType.phone,
               validator: (value) {
                 if (value == null || value.isEmpty) {
-                  return l10n.validationRequired;
+                  return 'This field is required';
                 }
                 return null;
               },
@@ -1430,3 +1428,9 @@ Dengan ini, kami menyatakan bahwa kami sudah membaca dan memahami serta menyetuj
     );
   }
 }
+
+
+
+
+
+

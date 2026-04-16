@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
+import '../../../../shared/providers/shared_providers.dart';
+import '../../data/models/academic_calendar_entry.dart';
+import '../../providers/academic_calendar_provider.dart';
 
 /// Calendar event model.
 class CalendarEvent {
@@ -25,109 +30,114 @@ class CalendarEvent {
 }
 
 /// Academic Calendar screen.
-class AcademicCalendarScreen extends StatefulWidget {
+class AcademicCalendarScreen extends ConsumerStatefulWidget {
   const AcademicCalendarScreen({super.key});
 
   @override
-  State<AcademicCalendarScreen> createState() => _AcademicCalendarScreenState();
+  ConsumerState<AcademicCalendarScreen> createState() =>
+      _AcademicCalendarScreenState();
 }
 
-class _AcademicCalendarScreenState extends State<AcademicCalendarScreen> {
+class _AcademicCalendarScreenState
+    extends ConsumerState<AcademicCalendarScreen> {
   CalendarFormat _calendarFormat = CalendarFormat.month;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
-
-  final Map<DateTime, List<CalendarEvent>> _events = {};
 
   @override
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
-    _initEvents();
-  }
-
-  void _initEvents() {
-    // Add sample events
-    final sampleEvents = [
-      CalendarEvent(
-        title: 'Mid-term Exams Begin',
-        description: 'Mid-term examination period starts',
-        date: DateTime(2026, 3, 15),
-        type: 'exam',
-        color: AppColors.error,
-      ),
-      CalendarEvent(
-        title: 'Independence Day',
-        description: 'National Holiday - School Closed',
-        date: DateTime(2026, 3, 17),
-        type: 'holiday',
-        color: AppColors.success,
-      ),
-      CalendarEvent(
-        title: 'Science Fair',
-        description: 'Annual science fair exhibition',
-        date: DateTime(2026, 3, 22),
-        type: 'event',
-        color: AppColors.info,
-      ),
-      CalendarEvent(
-        title: 'Report Card Distribution',
-        description: 'Parents meeting and report card distribution',
-        date: DateTime(2026, 3, 28),
-        type: 'event',
-        color: AppColors.warning,
-      ),
-      CalendarEvent(
-        title: 'Assignment Deadline',
-        description: 'Physics lab report submission',
-        date: DateTime(2026, 3, 20),
-        type: 'deadline',
-        color: AppColors.secondary,
-      ),
-      CalendarEvent(
-        title: 'Easter Holiday',
-        description: 'School closed for Easter',
-        date: DateTime(2026, 4, 5),
-        type: 'holiday',
-        color: AppColors.success,
-      ),
-    ];
-
-    for (final event in sampleEvents) {
-      final dateKey = DateTime(
-        event.date.year,
-        event.date.month,
-        event.date.day,
-      );
-      if (_events[dateKey] == null) {
-        _events[dateKey] = [];
-      }
-      _events[dateKey]!.add(event);
-    }
-  }
-
-  List<CalendarEvent> _getEventsForDay(DateTime day) {
-    final dateKey = DateTime(day.year, day.month, day.day);
-    return _events[dateKey] ?? [];
   }
 
   @override
   Widget build(BuildContext context) {
-    final selectedEvents = _getEventsForDay(_selectedDay ?? _focusedDay);
+    final request = _buildRequest();
+    final calendarAsync = request == null
+        ? null
+        : ref.watch(parentCalendarProvider(request));
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: Text('Academic Calendar'),
+        title: const Text('Academic Calendar'),
         leading: IconButton(
           icon: const Icon(Iconsax.arrow_left),
           onPressed: () => context.pop(),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: request == null
+                ? null
+                : () => ref.invalidate(parentCalendarProvider(request)),
+          ),
+        ],
       ),
-      body: Column(
+      body: request == null
+          ? _buildInfoState(
+              'Academic calendar data is not available for this account.',
+            )
+          : calendarAsync!.when(
+              loading: _buildLoadingState,
+              error: (error, _) => _buildErrorState(
+                message: _sanitizeErrorMessage(error),
+                onRetry: () => ref.invalidate(parentCalendarProvider(request)),
+              ),
+              data: (entries) => _buildDataState(entries: entries),
+            ),
+    );
+  }
+
+  AcademicCalendarRequest? _buildRequest() {
+    final user = ref.watch(currentUserProvider);
+    if (user == null) {
+      return null;
+    }
+
+    final id = user.id.trim();
+    final loginType = user.role.trim();
+    final nidStudent =
+        user.studentId?.toString() ??
+        user.childrenStudentId
+            ?.where((id) => id > 0)
+            .cast<int?>()
+            .firstWhere((_) => true, orElse: () => null)
+            ?.toString() ??
+        '';
+
+    if (id.isEmpty || loginType.isEmpty || nidStudent.isEmpty) {
+      return null;
+    }
+
+    return AcademicCalendarRequest(
+      id: id,
+      loginType: loginType,
+      nidStudent: nidStudent,
+    );
+  }
+
+  Widget _buildDataState({required List<AcademicCalendarEntry> entries}) {
+    final eventsByDay = _mapEntriesToEvents(entries);
+    final selectedEvents = _getEventsForDay(
+      _selectedDay ?? _focusedDay,
+      eventsByDay,
+    );
+    final bounds = _resolveCalendarBounds(entries);
+
+    return RefreshIndicator(
+      color: AppColors.primary,
+      onRefresh: () async {
+        final request = _buildRequest();
+        if (request == null) {
+          return;
+        }
+        ref.invalidate(parentCalendarProvider(request));
+        await ref.read(parentCalendarProvider(request).future);
+      },
+      child: Column(
         children: [
-          // Calendar
           Card(
                 margin: const EdgeInsets.all(AppDimensions.paddingM),
                 elevation: AppDimensions.elevationS,
@@ -137,12 +147,12 @@ class _AcademicCalendarScreenState extends State<AcademicCalendarScreen> {
                 child: Padding(
                   padding: const EdgeInsets.all(AppDimensions.paddingS),
                   child: TableCalendar<CalendarEvent>(
-                    firstDay: DateTime(2026, 1, 1),
-                    lastDay: DateTime(2026, 12, 31),
+                    firstDay: bounds.firstDay,
+                    lastDay: bounds.lastDay,
                     focusedDay: _focusedDay,
                     calendarFormat: _calendarFormat,
                     selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-                    eventLoader: _getEventsForDay,
+                    eventLoader: (day) => _getEventsForDay(day, eventsByDay),
                     startingDayOfWeek: StartingDayOfWeek.monday,
                     headerStyle: const HeaderStyle(
                       formatButtonVisible: true,
@@ -229,49 +239,19 @@ class _AcademicCalendarScreenState extends State<AcademicCalendarScreen> {
               .animate()
               .fadeIn(duration: const Duration(milliseconds: 400))
               .slideY(begin: -0.1, end: 0),
-          // Legend
           Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: AppDimensions.paddingM,
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildLegendItem('Holiday', AppColors.success),
-                _buildLegendItem('Exam', AppColors.error),
-                _buildLegendItem('Event', AppColors.info),
-                _buildLegendItem('Deadline', AppColors.warning),
-              ],
-            ),
+            child: const SizedBox.shrink(),
           ).animate().fadeIn(
             delay: const Duration(milliseconds: 200),
             duration: const Duration(milliseconds: 400),
           ),
           const SizedBox(height: AppDimensions.paddingM),
-          // Events List
           Expanded(
             child: selectedEvents.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Iconsax.calendar_1,
-                          size: 48,
-                          color: AppColors.textTertiary.withValues(alpha: 0.5),
-                        ),
-                        const SizedBox(height: AppDimensions.paddingM),
-                        Text(
-                          'No events for this day',
-                          style: const TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 14,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
+                ? _buildInfoState('No events for this day')
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppDimensions.paddingM,
@@ -288,42 +268,232 @@ class _AcademicCalendarScreenState extends State<AcademicCalendarScreen> {
     );
   }
 
-  Widget _buildLegendItem(String label, Color color) {
-    return Row(
+  Map<DateTime, List<CalendarEvent>> _mapEntriesToEvents(
+    List<AcademicCalendarEntry> entries,
+  ) {
+    final map = <DateTime, List<CalendarEvent>>{};
+
+    for (final entry in entries) {
+      var cursor = DateTime(
+        entry.dateFrom.year,
+        entry.dateFrom.month,
+        entry.dateFrom.day,
+      );
+      final end = DateTime(
+        entry.dateEnd.year,
+        entry.dateEnd.month,
+        entry.dateEnd.day,
+      );
+
+      var safetyCounter = 0;
+      while (!cursor.isAfter(end) && safetyCounter < 3700) {
+        final key = DateTime(cursor.year, cursor.month, cursor.day);
+        map
+            .putIfAbsent(key, () => <CalendarEvent>[])
+            .add(
+              CalendarEvent(
+                title: entry.name,
+                description: _buildEventDescription(entry),
+                date: key,
+                type: entry.type,
+                color: _eventColor(entry.type),
+              ),
+            );
+        cursor = cursor.add(const Duration(days: 1));
+        safetyCounter++;
+      }
+    }
+
+    return map;
+  }
+
+  List<CalendarEvent> _getEventsForDay(
+    DateTime day,
+    Map<DateTime, List<CalendarEvent>> eventsByDay,
+  ) {
+    final key = DateTime(day.year, day.month, day.day);
+    return eventsByDay[key] ?? <CalendarEvent>[];
+  }
+
+  _CalendarBounds _resolveCalendarBounds(List<AcademicCalendarEntry> entries) {
+    final now = DateTime.now();
+    if (entries.isEmpty) {
+      return _CalendarBounds(
+        firstDay: DateTime(now.year - 1, 1, 1),
+        lastDay: DateTime(now.year + 1, 12, 31),
+      );
+    }
+
+    DateTime minDate = entries.first.dateFrom;
+    DateTime maxDate = entries.first.dateEnd;
+
+    for (final entry in entries) {
+      if (entry.dateFrom.isBefore(minDate)) {
+        minDate = entry.dateFrom;
+      }
+      if (entry.dateEnd.isAfter(maxDate)) {
+        maxDate = entry.dateEnd;
+      }
+    }
+
+    if (_focusedDay.isBefore(minDate)) {
+      minDate = _focusedDay;
+    }
+    if (_focusedDay.isAfter(maxDate)) {
+      maxDate = _focusedDay;
+    }
+
+    return _CalendarBounds(firstDay: minDate, lastDay: maxDate);
+  }
+
+  String _buildEventDescription(AcademicCalendarEntry entry) {
+    if (entry.dateFrom.isAtSameMomentAs(entry.dateEnd)) {
+      return 'Date: ${_formatDate(entry.dateFrom)}';
+    }
+
+    return 'Date: ${_formatDate(entry.dateFrom)} - ${_formatDate(entry.dateEnd)}';
+  }
+
+  String _formatDate(DateTime date) {
+    const months = <String>[
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+
+    final day = date.day.toString().padLeft(2, '0');
+    final month = months[date.month - 1];
+    final year = date.year.toString();
+    return '$day $month $year';
+  }
+
+  Color _eventColor(String type) {
+    return AppColors.primary;
+  }
+
+  Widget _buildLoadingState() {
+    return ListView(
+      padding: const EdgeInsets.all(AppDimensions.paddingM),
       children: [
-        Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        Shimmer.fromColors(
+          baseColor: AppColors.border,
+          highlightColor: AppColors.surface,
+          child: Container(
+            height: 380,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(AppDimensions.radiusL),
+            ),
+          ),
         ),
-        const SizedBox(width: 4),
-        Text(
-          label,
-          style: const TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 11,
-            color: AppColors.textSecondary,
+        const SizedBox(height: AppDimensions.paddingM),
+        Shimmer.fromColors(
+          baseColor: AppColors.border,
+          highlightColor: AppColors.surface,
+          child: Container(
+            height: 80,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(AppDimensions.radiusM),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppDimensions.paddingM),
+        Shimmer.fromColors(
+          baseColor: AppColors.border,
+          highlightColor: AppColors.surface,
+          child: Container(
+            height: 80,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(AppDimensions.radiusM),
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildEventCard(CalendarEvent event, int index) {
-    IconData icon;
-    switch (event.type) {
-      case 'holiday':
-        icon = Iconsax.sun_1;
-        break;
-      case 'exam':
-        icon = Iconsax.document_text;
-        break;
-      case 'deadline':
-        icon = Iconsax.timer_1;
-        break;
-      default:
-        icon = Iconsax.calendar_tick;
+  Widget _buildInfoState(String message) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingL),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Iconsax.calendar_1,
+              size: 48,
+              color: AppColors.textTertiary.withValues(alpha: 0.5),
+            ),
+            const SizedBox(height: AppDimensions.paddingM),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState({
+    required String message,
+    required VoidCallback onRetry,
+  }) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingL),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.warning_amber_rounded,
+              size: 56,
+              color: AppColors.warning,
+            ),
+            const SizedBox(height: AppDimensions.paddingM),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: AppDimensions.paddingM),
+            ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _sanitizeErrorMessage(Object error) {
+    final text = error.toString().trim();
+    if (text.isEmpty) {
+      return 'Failed to load academic calendar.';
     }
+    return text;
+  }
+
+  Widget _buildEventCard(CalendarEvent event, int index) {
+    const IconData icon = Iconsax.calendar_tick;
 
     return Card(
           elevation: AppDimensions.elevationS,
@@ -401,5 +571,9 @@ class _AcademicCalendarScreenState extends State<AcademicCalendarScreen> {
   }
 }
 
+class _CalendarBounds {
+  final DateTime firstDay;
+  final DateTime lastDay;
 
-
+  const _CalendarBounds({required this.firstDay, required this.lastDay});
+}

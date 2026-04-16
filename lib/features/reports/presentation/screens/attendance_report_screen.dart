@@ -1,87 +1,104 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:shimmer/shimmer.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
-
-/// Attendance record model.
-class AttendanceRecord {
-  final DateTime date;
-  final String status; // 'present', 'absent', 'late', 'excused'
-  final String? note;
-
-  const AttendanceRecord({required this.date, required this.status, this.note});
-}
+import '../../../../shared/providers/shared_providers.dart';
+import '../../data/models/attendance_chart_data.dart';
+import '../../providers/attendance_report_provider.dart';
 
 /// Attendance Report screen.
-class AttendanceReportScreen extends StatefulWidget {
+class AttendanceReportScreen extends ConsumerStatefulWidget {
   const AttendanceReportScreen({super.key});
 
   @override
-  State<AttendanceReportScreen> createState() => _AttendanceReportScreenState();
+  ConsumerState<AttendanceReportScreen> createState() =>
+      _AttendanceReportScreenState();
 }
 
-class _AttendanceReportScreenState extends State<AttendanceReportScreen> {
-  String _selectedMonth = 'March 2026';
-
-  final List<String> _months = [
-    'January 2026',
-    'February 2026',
-    'March 2026',
-    'April 2026',
-    'May 2026',
-  ];
-
-  final List<AttendanceRecord> _records = [
-    AttendanceRecord(date: DateTime(2026, 3, 1), status: 'present'),
-    AttendanceRecord(date: DateTime(2026, 3, 2), status: 'present'),
-    AttendanceRecord(
-      date: DateTime(2026, 3, 3),
-      status: 'late',
-      note: 'Arrived 15 minutes late',
-    ),
-    AttendanceRecord(date: DateTime(2026, 3, 4), status: 'present'),
-    AttendanceRecord(
-      date: DateTime(2026, 3, 5),
-      status: 'absent',
-      note: 'Sick - Doctor appointment',
-    ),
-    AttendanceRecord(date: DateTime(2026, 3, 8), status: 'present'),
-    AttendanceRecord(date: DateTime(2026, 3, 9), status: 'present'),
-    AttendanceRecord(
-      date: DateTime(2026, 3, 10),
-      status: 'excused',
-      note: 'Family emergency',
-    ),
-    AttendanceRecord(date: DateTime(2026, 3, 11), status: 'present'),
-    AttendanceRecord(date: DateTime(2026, 3, 12), status: 'present'),
-  ];
-
+class _AttendanceReportScreenState
+    extends ConsumerState<AttendanceReportScreen> {
   @override
   Widget build(BuildContext context) {
-
-    final present = _records.where((r) => r.status == 'present').length;
-    final absent = _records.where((r) => r.status == 'absent').length;
-    final late = _records.where((r) => r.status == 'late').length;
-    final excused = _records.where((r) => r.status == 'excused').length;
-    final total = _records.length;
-    final attendanceRate = ((present + late) / total * 100).toStringAsFixed(1);
+    final request = _buildRequest();
+    final chartAsync = request == null
+        ? null
+        : ref.watch(attendanceChartProvider(request));
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: Text('Attendance Report'),
+        title: const Text('Attendance Report'),
         leading: IconButton(
           icon: const Icon(Iconsax.arrow_left),
           onPressed: () => context.pop(),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: request == null
+                ? null
+                : () => ref.invalidate(attendanceChartProvider(request)),
+          ),
+        ],
       ),
-      body: Column(
+      body: request == null
+          ? _buildInfoState(
+              'Student attendance data is not available for this account.',
+            )
+          : chartAsync!.when(
+              loading: _buildLoadingState,
+              error: (error, _) => _buildErrorState(
+                message: _sanitizeErrorMessage(error),
+                onRetry: () => ref.invalidate(attendanceChartProvider(request)),
+              ),
+              data: _buildDataState,
+            ),
+    );
+  }
+
+  AttendanceReportRequest? _buildRequest() {
+    final user = ref.watch(currentUserProvider);
+    if (user == null) {
+      return null;
+    }
+
+    final nidUser = int.tryParse(user.id);
+    final nidStudent =
+        user.studentId ??
+        user.childrenStudentId?.cast<int?>().firstWhere(
+          (id) => (id ?? 0) > 0,
+          orElse: () => null,
+        );
+
+    if ((nidUser ?? 0) <= 0 || (nidStudent ?? 0) <= 0) {
+      return null;
+    }
+
+    return AttendanceReportRequest(nidUser: nidUser!, nidStudent: nidStudent!);
+  }
+
+  Widget _buildDataState(AttendanceChartData chart) {
+    final attendanceRate = chart.attendanceRate.toStringAsFixed(1);
+
+    return RefreshIndicator(
+      color: AppColors.primary,
+      onRefresh: () async {
+        final request = _buildRequest();
+        if (request == null) {
+          return;
+        }
+        ref.invalidate(attendanceChartProvider(request));
+        await ref.read(attendanceChartProvider(request).future);
+      },
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          // Summary Card
           Container(
                 margin: const EdgeInsets.all(AppDimensions.paddingM),
                 padding: const EdgeInsets.all(AppDimensions.paddingL),
@@ -116,31 +133,14 @@ class _AttendanceReportScreenState extends State<AttendanceReportScreen> {
                         color: AppColors.textOnPrimary,
                       ),
                     ),
-                    const SizedBox(height: AppDimensions.paddingM),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _buildSummaryChip(
-                          'Present',
-                          present,
-                          AppColors.success,
-                        ),
-                        _buildSummaryChip(
-                          'Absent',
-                          absent,
-                          AppColors.error,
-                        ),
-                        _buildSummaryChip(
-                          'Late',
-                          late,
-                          AppColors.warning,
-                        ),
-                        _buildSummaryChip(
-                          'Excused',
-                          excused,
-                          AppColors.info,
-                        ),
-                      ],
+                    const SizedBox(height: AppDimensions.paddingXS),
+                    Text(
+                      'Total Records: ${chart.totalRecords}',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 12,
+                        color: AppColors.textOnPrimary.withValues(alpha: 0.85),
+                      ),
                     ),
                   ],
                 ),
@@ -148,41 +148,41 @@ class _AttendanceReportScreenState extends State<AttendanceReportScreen> {
               .animate()
               .fadeIn(duration: const Duration(milliseconds: 400))
               .slideY(begin: -0.2, end: 0),
-          // Month Selector
           Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: AppDimensions.paddingM,
             ),
-            child: Row(
+            child: GridView.count(
+              crossAxisCount: 2,
+              crossAxisSpacing: AppDimensions.paddingM,
+              mainAxisSpacing: AppDimensions.paddingM,
+              childAspectRatio: 1.7,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
               children: [
-                const Icon(
-                  Iconsax.calendar,
-                  color: AppColors.primary,
-                  size: 20,
+                _buildSummaryTile(
+                  label: 'Present',
+                  count: chart.present,
+                  color: AppColors.success,
+                  icon: Iconsax.tick_circle,
                 ),
-                const SizedBox(width: AppDimensions.paddingS),
-                Expanded(
-                  child: DropdownButton<String>(
-                    value: _selectedMonth,
-                    isExpanded: true,
-                    underline: const SizedBox(),
-                    items: _months.map((month) {
-                      return DropdownMenuItem<String>(
-                        value: month,
-                        child: Text(
-                          month,
-                          style: const TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      setState(() => _selectedMonth = value!);
-                    },
-                  ),
+                _buildSummaryTile(
+                  label: 'Absent',
+                  count: chart.absent,
+                  color: AppColors.error,
+                  icon: Iconsax.close_circle,
+                ),
+                _buildSummaryTile(
+                  label: 'Sick',
+                  count: chart.sick,
+                  color: AppColors.warning,
+                  icon: Iconsax.activity,
+                ),
+                _buildSummaryTile(
+                  label: 'On Leave',
+                  count: chart.onLeave,
+                  color: AppColors.info,
+                  icon: Iconsax.note,
                 ),
               ],
             ),
@@ -190,18 +190,60 @@ class _AttendanceReportScreenState extends State<AttendanceReportScreen> {
             delay: const Duration(milliseconds: 200),
             duration: const Duration(milliseconds: 400),
           ),
-          const SizedBox(height: AppDimensions.paddingM),
-          // Records List
+          const SizedBox(height: AppDimensions.paddingL),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryTile({
+    required String label,
+    required int count,
+    required Color color,
+    required IconData icon,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(AppDimensions.paddingM),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppDimensions.radiusM),
+        border: Border.all(color: AppColors.borderLight),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(AppDimensions.radiusS),
+            ),
+            child: Icon(icon, color: color, size: 18),
+          ),
+          const SizedBox(width: AppDimensions.paddingS),
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppDimensions.paddingM,
-              ),
-              itemCount: _records.length,
-              itemBuilder: (context, index) {
-                final record = _records[index];
-                return _buildRecordCard(record, index);
-              },
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$count',
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -209,161 +251,101 @@ class _AttendanceReportScreenState extends State<AttendanceReportScreen> {
     );
   }
 
-  Widget _buildSummaryChip(String label, int count, Color color) {
-    return Column(
+  Widget _buildLoadingState() {
+    return ListView(
+      padding: const EdgeInsets.all(AppDimensions.paddingM),
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppDimensions.paddingM,
-            vertical: AppDimensions.paddingS,
-          ),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(AppDimensions.radiusS),
-          ),
-          child: Text(
-            '$count',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: color,
+        Shimmer.fromColors(
+          baseColor: AppColors.border,
+          highlightColor: AppColors.surface,
+          child: Container(
+            height: 170,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(AppDimensions.radiusL),
             ),
           ),
         ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 10,
-            color: AppColors.textOnPrimary.withValues(alpha: 0.8),
-          ),
+        const SizedBox(height: AppDimensions.paddingM),
+        GridView.count(
+          crossAxisCount: 2,
+          crossAxisSpacing: AppDimensions.paddingM,
+          mainAxisSpacing: AppDimensions.paddingM,
+          childAspectRatio: 1.7,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          children: List<Widget>.generate(4, (index) {
+            return Shimmer.fromColors(
+              baseColor: AppColors.border,
+              highlightColor: AppColors.surface,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(AppDimensions.radiusM),
+                ),
+              ),
+            );
+          }),
         ),
       ],
     );
   }
 
-  Widget _buildRecordCard(AttendanceRecord record, int index) {
-    Color statusColor;
-    IconData statusIcon;
-    String statusText;
-
-    switch (record.status) {
-      case 'present':
-        statusColor = AppColors.success;
-        statusIcon = Iconsax.tick_circle;
-        statusText = 'Present';
-        break;
-      case 'absent':
-        statusColor = AppColors.error;
-        statusIcon = Iconsax.close_circle;
-        statusText = 'Absent';
-        break;
-      case 'late':
-        statusColor = AppColors.warning;
-        statusIcon = Iconsax.clock;
-        statusText = 'Late';
-        break;
-      case 'excused':
-        statusColor = AppColors.info;
-        statusIcon = Iconsax.info_circle;
-        statusText = 'Excused';
-        break;
-      default:
-        statusColor = AppColors.textSecondary;
-        statusIcon = Iconsax.minus_cirlce;
-        statusText = 'Unknown';
-    }
-
-    final dayNames = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-    return Card(
-          elevation: AppDimensions.elevationS,
-          margin: const EdgeInsets.only(bottom: AppDimensions.paddingS),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppDimensions.radiusM),
+  Widget _buildInfoState(String message) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingL),
+        child: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 14,
+            color: AppColors.textSecondary,
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(AppDimensions.paddingM),
-            child: Row(
-              children: [
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(AppDimensions.radiusS),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        '${record.date.day}',
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      Text(
-                        dayNames[record.date.weekday],
-                        style: const TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 10,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: AppDimensions.paddingM),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(statusIcon, color: statusColor, size: 16),
-                          const SizedBox(width: 4),
-                          Text(
-                            statusText,
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: statusColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (record.note != null) ...[
-                        const SizedBox(height: AppDimensions.paddingXS),
-                        Text(
-                          record.note!,
-                          style: const TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState({
+    required String message,
+    required VoidCallback onRetry,
+  }) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingL),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.warning_amber_rounded,
+              size: 56,
+              color: AppColors.warning,
             ),
-          ),
-        )
-        .animate()
-        .fadeIn(
-          delay: Duration(milliseconds: 50 * index),
-          duration: const Duration(milliseconds: 300),
-        )
-        .slideX(begin: 0.05, end: 0);
+            const SizedBox(height: AppDimensions.paddingM),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: AppDimensions.paddingM),
+            ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _sanitizeErrorMessage(Object error) {
+    final text = error.toString().trim();
+    if (text.isEmpty) {
+      return 'Failed to load attendance report.';
+    }
+    return text;
   }
 }
-
-
-

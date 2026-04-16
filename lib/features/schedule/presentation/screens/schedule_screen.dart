@@ -168,53 +168,56 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
   }
 
   Widget _buildClassLoadingSkeleton() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingL),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Shimmer.fromColors(
-              baseColor: AppColors.border,
-              highlightColor: AppColors.surface,
-              child: Container(
-                width: 64,
-                height: 64,
-                decoration: const BoxDecoration(
-                  color: AppColors.surface,
-                  shape: BoxShape.circle,
-                ),
+    return ListView.builder(
+      padding: const EdgeInsets.all(AppDimensions.paddingM),
+      itemCount: 3,
+      itemBuilder: (context, index) {
+        return Shimmer.fromColors(
+          baseColor: AppColors.border,
+          highlightColor: AppColors.surface,
+          child: Card(
+            elevation: AppDimensions.elevationS,
+            margin: const EdgeInsets.only(bottom: AppDimensions.paddingM),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppDimensions.radiusM),
+            ),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    width: 4,
+                    decoration: const BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(AppDimensions.radiusM),
+                        bottomLeft: Radius.circular(AppDimensions.radiusM),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppDimensions.paddingM),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSkeletonLine(width: 110),
+                          const SizedBox(height: AppDimensions.paddingXS),
+                          _buildSkeletonLine(width: 170),
+                          const SizedBox(height: AppDimensions.paddingXS),
+                          _buildSkeletonLine(width: 130),
+                          const SizedBox(height: AppDimensions.paddingXS),
+                          _buildSkeletonLine(width: 140),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: AppDimensions.paddingM),
-            Shimmer.fromColors(
-              baseColor: AppColors.border,
-              highlightColor: AppColors.surface,
-              child: Container(
-                width: 180,
-                height: 14,
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(AppDimensions.radiusS),
-                ),
-              ),
-            ),
-            const SizedBox(height: AppDimensions.paddingS),
-            Shimmer.fromColors(
-              baseColor: AppColors.border,
-              highlightColor: AppColors.surface,
-              child: Container(
-                width: 130,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(AppDimensions.radiusS),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 

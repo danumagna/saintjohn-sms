@@ -23,11 +23,22 @@ Future<Uint8List?> preloadCurrentUserPhoto({
       cacheBust: cacheBust,
     );
     if (bytes != null) {
-      ref.read(currentUserPhotoBytesProvider.notifier).state = bytes;
+      _setCurrentUserPhotoBytesSafely(ref: ref, bytes: bytes);
       return bytes;
     }
   }
 
-  ref.read(currentUserPhotoBytesProvider.notifier).state = null;
+  _setCurrentUserPhotoBytesSafely(ref: ref, bytes: null);
   return null;
+}
+
+void _setCurrentUserPhotoBytesSafely({
+  required WidgetRef ref,
+  required Uint8List? bytes,
+}) {
+  try {
+    ref.read(currentUserPhotoBytesProvider.notifier).state = bytes;
+  } on StateError {
+    // Ignore updates when the provider container/ref is no longer active.
+  }
 }

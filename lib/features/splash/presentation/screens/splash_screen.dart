@@ -43,7 +43,32 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       return;
     }
 
+    final activeUser = ref.read(currentUserProvider);
+
     if (!rememberMeEnabled) {
+      final token = activeUser?.userToken?.trim() ?? '';
+      final isExpired =
+          activeUser?.userTokenExpiry != null &&
+          activeUser!.userTokenExpiry!.isBefore(DateTime.now());
+
+      // Keep the current runtime session alive even when remember me is off.
+      // "Remember me" only controls persistence between app launches.
+      if (activeUser != null && token.isNotEmpty && !isExpired) {
+        ref.read(authRepositoryProvider).setAuthToken(token);
+        await preloadCurrentUserPhoto(ref: ref, user: activeUser);
+
+        if (!mounted) {
+          return;
+        }
+
+        if (activeUser.role == 'parent') {
+          context.go(AppRoutes.parentDashboard);
+        } else {
+          context.go(AppRoutes.studentDashboard);
+        }
+        return;
+      }
+
       await clearCurrentUserSession();
 
       if (!mounted) {
@@ -56,7 +81,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       return;
     }
 
-    var user = ref.read(currentUserProvider);
+    var user = activeUser;
     user ??= await restoreUserFuture;
 
     if (!mounted) {

@@ -70,13 +70,32 @@ class AppRoutes {
 }
 
 /// Router provider for the application.
+class _RouterRefreshNotifier extends ChangeNotifier {
+  void refresh() {
+    notifyListeners();
+  }
+}
+
+final _routerRefreshNotifierProvider = Provider<_RouterRefreshNotifier>((ref) {
+  final notifier = _RouterRefreshNotifier();
+
+  ref.listen(currentUserProvider, (_, _) {
+    notifier.refresh();
+  });
+
+  ref.onDispose(notifier.dispose);
+  return notifier;
+});
+
 final routerProvider = Provider<GoRouter>((ref) {
-  final currentUser = ref.watch(currentUserProvider);
+  final refreshNotifier = ref.watch(_routerRefreshNotifierProvider);
 
   return GoRouter(
     initialLocation: AppRoutes.splash,
     debugLogDiagnostics: true,
+    refreshListenable: refreshNotifier,
     redirect: (context, state) {
+      final currentUser = ref.read(currentUserProvider);
       final location = state.uri.path;
 
       if (location == AppRoutes.splash) {

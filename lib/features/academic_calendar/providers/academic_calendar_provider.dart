@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/providers/shared_providers.dart';
+import '../../../shared/utils/current_user_session_storage.dart';
 import '../data/models/academic_calendar_entry.dart';
 import '../data/repositories/academic_calendar_repository.dart';
 
@@ -37,7 +38,14 @@ final parentCalendarProvider =
     FutureProvider.family<List<AcademicCalendarEntry>, AcademicCalendarRequest>(
       (ref, request) async {
         final currentUser = ref.read(currentUserProvider);
-        final authToken = currentUser?.userToken?.trim() ?? '';
+        var authToken = currentUser?.userToken?.trim() ?? '';
+        if (authToken.isEmpty) {
+          final storedUser = await readStoredCurrentUser();
+          authToken = storedUser?.userToken?.trim() ?? '';
+          if (storedUser != null && ref.read(currentUserProvider) == null) {
+            ref.read(currentUserProvider.notifier).state = storedUser;
+          }
+        }
 
         final repository = ref.read(academicCalendarRepositoryProvider);
         return repository.getParentCalendar(

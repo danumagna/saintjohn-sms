@@ -96,12 +96,17 @@ class _AcademicCalendarScreenState
       return null;
     }
 
-    final id = _resolveRequestId(user.id, user.studentId);
     final loginType = _normalizeLoginType(user.role);
     final nidStudent = _resolveStudentId(
-      user.studentId,
-      user.childrenStudentId,
-      user.id,
+      loginType: loginType,
+      directStudentId: user.studentId,
+      childrenStudentIds: user.childrenStudentId,
+      rawId: user.id,
+    );
+    final id = _resolveRequestId(
+      rawId: user.id,
+      loginType: loginType,
+      nidStudent: nidStudent,
     );
 
     if (id.isEmpty || loginType.isEmpty || nidStudent.isEmpty) {
@@ -126,24 +131,29 @@ class _AcademicCalendarScreenState
     return role;
   }
 
-  String _resolveRequestId(String rawId, int? fallbackStudentId) {
+  String _resolveRequestId({
+    required String rawId,
+    required String loginType,
+    required String nidStudent,
+  }) {
+    if (loginType == 'student' && nidStudent.isNotEmpty) {
+      return nidStudent;
+    }
+
     final parsed = int.tryParse(rawId.trim());
     if ((parsed ?? 0) > 0) {
       return parsed.toString();
     }
 
-    if ((fallbackStudentId ?? 0) > 0) {
-      return fallbackStudentId.toString();
-    }
-
-    return '';
+    return nidStudent;
   }
 
-  String _resolveStudentId(
+  String _resolveStudentId({
+    required String loginType,
     int? directStudentId,
     List<int>? childrenStudentIds,
-    String rawId,
-  ) {
+    required String rawId,
+  }) {
     if ((directStudentId ?? 0) > 0) {
       return directStudentId.toString();
     }
@@ -154,6 +164,12 @@ class _AcademicCalendarScreenState
         .firstWhere((_) => true, orElse: () => null);
     if ((firstChild ?? 0) > 0) {
       return firstChild.toString();
+    }
+
+    // For student login, avoid falling back to user.id because some accounts
+    // store a non-student identifier in id and backend returns auth denied.
+    if (loginType == 'student') {
+      return '';
     }
 
     final parsed = int.tryParse(rawId.trim());

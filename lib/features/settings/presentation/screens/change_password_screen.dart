@@ -103,6 +103,8 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
 
     final user = ref.read(currentUserProvider);
     final userId = int.tryParse(user?.id ?? '');
+    final studentId = user?.studentId;
+    final isStudent = user?.isStudent ?? false;
     final authToken = user?.userToken?.trim() ?? '';
 
     if (userId == null) {
@@ -115,20 +117,36 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
       return;
     }
 
+    if (isStudent && studentId == null) {
+      await _showErrorDialog('Student ID tidak valid.');
+      return;
+    }
+
     _apiClient.setAuthToken(authToken);
 
     setState(() => _isLoading = true);
 
     try {
+      final endpoint = isStudent
+          ? ApiEndpoints.updateStudentPasswordInstant
+          : ApiEndpoints.updateStudentPassword;
+      final payload = isStudent
+          ? <String, dynamic>{
+              'nuserId': userId,
+              'nstudentId': studentId,
+              'vstudentDashboardNewPassword': _newPasswordController.text,
+            }
+          : <String, dynamic>{
+              // Keep both keys for backend compatibility.
+              'nuserId': userId,
+              'nid': userId,
+              'vstudentDashboardOldPassword': _currentPasswordController.text,
+              'vstudentDashboardNewPassword': _newPasswordController.text,
+            };
+
       final response = await _apiClient.post(
-        ApiEndpoints.updateStudentPassword,
-        data: <String, dynamic>{
-          // Keep both keys for backend compatibility.
-          'nuserId': userId,
-          'nid': userId,
-          'vstudentDashboardOldPassword': _currentPasswordController.text,
-          'vstudentDashboardNewPassword': _newPasswordController.text,
-        },
+        endpoint,
+        data: payload,
         options: Options(headers: <String, dynamic>{'AUTHTOKEN': authToken}),
       );
 

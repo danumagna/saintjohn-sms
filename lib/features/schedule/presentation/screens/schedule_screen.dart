@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:intl/intl.dart';
 import 'package:shimmer/shimmer.dart';
 
 import '../../../../core/constants/app_colors.dart';
@@ -98,6 +99,131 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
     );
   }
 
+  DateTime _selectedDateForDisplay() {
+    final today = DateTime.now();
+    final targetWeekday = _orderedDayIndexes[_selectedDayIndex] + 1;
+
+    var diff = targetWeekday - today.weekday;
+    if (diff < 0) {
+      diff += 7;
+    }
+
+    return DateTime(
+      today.year,
+      today.month,
+      today.day,
+    ).add(Duration(days: diff));
+  }
+
+  Widget _buildSelectedDateHeader() {
+    final selectedDate = _selectedDateForDisplay();
+    final dayLabel = DateFormat('EEEE', 'id_ID').format(selectedDate);
+    final dateLabel = DateFormat('d MMMM yyyy', 'id_ID').format(selectedDate);
+    final shortDateLabel = DateFormat(
+      'dd/MM/yyyy',
+      'id_ID',
+    ).format(selectedDate);
+
+    return Container(
+          margin: const EdgeInsets.symmetric(
+            horizontal: AppDimensions.paddingM,
+            vertical: AppDimensions.paddingS,
+          ),
+          padding: const EdgeInsets.all(AppDimensions.paddingM),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppColors.primary.withValues(alpha: 0.14),
+                AppColors.secondary.withValues(alpha: 0.08),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(AppDimensions.radiusM),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.16),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.06),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(AppDimensions.radiusS),
+                ),
+                child: const Icon(
+                  Iconsax.calendar_1,
+                  size: 18,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: AppDimensions.paddingM),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      dayLabel,
+                      style: const TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      dateLabel,
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppDimensions.paddingS,
+                  vertical: AppDimensions.paddingXS,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppDimensions.radiusS),
+                ),
+                child: Text(
+                  shortDateLabel,
+                  style: const TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        )
+        .animate()
+        .fadeIn(duration: const Duration(milliseconds: 320))
+        .slideY(
+          begin: 0.12,
+          end: 0,
+          duration: const Duration(milliseconds: 320),
+        );
+  }
+
   @override
   Widget build(BuildContext context) {
     final int selectedDay = _orderedDayIndexes[_selectedDayIndex] + 1;
@@ -121,6 +247,7 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
       body: Column(
         children: [
           _buildDaySelector(),
+          _buildSelectedDateHeader(),
           Expanded(child: _buildClassResolutionBody(selectedDay: selectedDay)),
         ],
       ),
@@ -311,7 +438,7 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
             itemCount: currentSchedule.length,
             itemBuilder: (context, index) {
               final item = currentSchedule[index];
-              return _buildScheduleCard(item, index);
+              return _buildScheduleCard(item);
             },
           ),
         );
@@ -492,7 +619,7 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
     );
   }
 
-  Widget _buildScheduleCard(StudentScheduleItem item, int index) {
+  Widget _buildScheduleCard(StudentScheduleItem item) {
     final accentColor = _subjectColor(item.subjectName);
 
     return Card(
@@ -546,11 +673,12 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
           ),
         )
         .animate()
-        .fadeIn(
-          delay: Duration(milliseconds: 100 * index),
-          duration: const Duration(milliseconds: 400),
-        )
-        .slideX(begin: 0.1, end: 0);
+        .fadeIn(duration: const Duration(milliseconds: 180))
+        .slideX(
+          begin: 0.03,
+          end: 0,
+          duration: const Duration(milliseconds: 180),
+        );
   }
 
   Widget _buildFieldRow({required String label, required String value}) {

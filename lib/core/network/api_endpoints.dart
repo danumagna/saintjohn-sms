@@ -30,6 +30,8 @@ class ApiEndpoints {
   static const String updatePassword =
       '/msisms006/user/update-employee-password';
   static const String updateStudentPassword = '/app003/update-student-password';
+  static const String updateStudentPasswordInstant =
+      '/app003/update-student-password-instant';
   static const String parentProfile = '/app003/parent-profile';
   static const String parentProfileUpdate = '/app003/parent-profile-update';
   static const String parentProfileUpload = '/app003/parent-profile-upload';
@@ -47,5 +49,7 @@ class ApiEndpoints {
       '/msisms003/parent-user/assessment-monitoring-status';
   static const String assessmentType =
       '/msisms003/parent-user/get-assessment-type';
+  static const String studentDashboardProgressGraphScore =
+      '/msisms003/student-dashboard-progress-performance/graph-score';
   static const String pageAccess = '/msisms006/user/page-access';
 }

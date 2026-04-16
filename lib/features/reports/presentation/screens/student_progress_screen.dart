@@ -1,262 +1,554 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:shimmer/shimmer.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
+import '../../../../shared/providers/shared_providers.dart';
+import '../../../../shared/utils/current_user_session_storage.dart';
+import '../../../auth/domain/entities/user.dart';
+import '../../data/models/student_progress_graph_score_item.dart';
+import '../../data/repositories/student_progress_repository.dart';
 
-/// Subject progress item model.
-class SubjectProgress {
-  final String subject;
-  final double progress;
-  final String grade;
-  final int completedTopics;
-  final int totalTopics;
-  final Color color;
-
-  const SubjectProgress({
-    required this.subject,
-    required this.progress,
-    required this.grade,
-    required this.completedTopics,
-    required this.totalTopics,
-    required this.color,
-  });
-}
-
-/// Student Progress screen showing academic achievements.
-class StudentProgressScreen extends StatelessWidget {
+/// Student Progress screen backed by graph-score API.
+class StudentProgressScreen extends ConsumerStatefulWidget {
   const StudentProgressScreen({super.key});
 
   @override
+  ConsumerState<StudentProgressScreen> createState() =>
+      _StudentProgressScreenState();
+}
+
+class _StudentProgressScreenState extends ConsumerState<StudentProgressScreen> {
+  final StudentProgressRepository _repository = StudentProgressRepository();
+
+  late Future<List<StudentProgressGraphScoreItem>> _progressFuture;
+  String? _selectedTerm;
+
+  @override
+  void initState() {
+    super.initState();
+    _progressFuture = _loadProgress();
+  }
+
+  String _normalizeLoginType(String rawRole) {
+    final role = rawRole.trim().toLowerCase();
+    if (role.contains('parent')) {
+      return 'parent';
+    }
+    if (role.contains('student')) {
+      return 'student';
+    }
+    return role;
+  }
+
+  int? _resolveStudentId(User user) {
+    if ((user.studentId ?? 0) > 0) {
+      return user.studentId;
+    }
+
+    final children = user.childrenStudentId;
+    if (children != null) {
+      for (final id in children) {
+        if (id > 0) {
+          return id;
+        }
+      }
+    }
+
+    final parsed = int.tryParse(user.id);
+    if ((parsed ?? 0) > 0) {
+      return parsed;
+    }
+
+    return null;
+  }
+
+  Future<List<StudentProgressGraphScoreItem>> _loadProgress() async {
+    User? user = ref.read(currentUserProvider);
+    user ??= await readStoredCurrentUser();
+
+    if (user == null) {
+      throw const StudentProgressException('User session not found.');
+    }
+
+    if (ref.read(currentUserProvider) == null) {
+      ref.read(currentUserProvider.notifier).state = user;
+    }
+
+    final authToken = user.userToken?.trim() ?? '';
+    final loginType = _normalizeLoginType(user.role);
+    final studentId = _resolveStudentId(user);
+
+    final parsedUserId = int.tryParse(user.id);
+    final requestId = (parsedUserId ?? 0) > 0
+        ? parsedUserId.toString()
+        : (studentId?.toString() ?? '');
+
+    if (authToken.isEmpty || requestId.isEmpty || (studentId ?? 0) <= 0) {
+      throw const StudentProgressException('User session is incomplete.');
+    }
+
+    return _repository.getGraphScores(
+      id: requestId,
+      loginType: loginType,
+      student: studentId.toString(),
+      authToken: authToken,
+    );
+  }
+
+  Future<void> _refresh() async {
+    setState(() {
+      _progressFuture = _loadProgress();
+    });
+    await _progressFuture;
+  }
+
+  List<String> _buildTermOptions(List<StudentProgressGraphScoreItem> items) {
+    final seen = <String>{};
+    final terms = <String>[];
+
+    final sorted = [...items]
+      ..sort((a, b) {
+        final byTermId = b.termId.compareTo(a.termId);
+        if (byTermId != 0) {
+          return byTermId;
+        }
+        return b.term.compareTo(a.term);
+      });
+
+    for (final item in sorted) {
+      if (item.term.trim().isEmpty) {
+        continue;
+      }
+      if (seen.add(item.term)) {
+        terms.add(item.term);
+      }
+    }
+
+    return terms;
+  }
+
+  List<StudentProgressGraphScoreItem> _filterByTerm(
+    List<StudentProgressGraphScoreItem> items,
+  ) {
+    final term = _selectedTerm;
+    if (term == null || term.isEmpty) {
+      return items;
+    }
+
+    return items.where((item) => item.term == term).toList();
+  }
+
+  Color _gradeColor(double grade) {
+    if (grade >= 85) {
+      return AppColors.success;
+    }
+    if (grade >= 70) {
+      return AppColors.warning;
+    }
+    return AppColors.error;
+  }
+
+  String _gradeLabel(double grade) {
+    if (grade >= 90) {
+      return 'A';
+    }
+    if (grade >= 80) {
+      return 'B';
+    }
+    if (grade >= 70) {
+      return 'C';
+    }
+    if (grade >= 60) {
+      return 'D';
+    }
+    return 'E';
+  }
+
+  @override
   Widget build(BuildContext context) {
-
-    final subjects = [
-      const SubjectProgress(
-        subject: 'Mathematics',
-        progress: 0.85,
-        grade: 'A',
-        completedTopics: 17,
-        totalTopics: 20,
-        color: Colors.blue,
-      ),
-      const SubjectProgress(
-        subject: 'Physics',
-        progress: 0.78,
-        grade: 'B+',
-        completedTopics: 14,
-        totalTopics: 18,
-        color: Colors.purple,
-      ),
-      const SubjectProgress(
-        subject: 'Chemistry',
-        progress: 0.82,
-        grade: 'A-',
-        completedTopics: 16,
-        totalTopics: 20,
-        color: Colors.orange,
-      ),
-      const SubjectProgress(
-        subject: 'Biology',
-        progress: 0.95,
-        grade: 'A+',
-        completedTopics: 19,
-        totalTopics: 20,
-        color: Colors.teal,
-      ),
-      const SubjectProgress(
-        subject: 'English',
-        progress: 0.90,
-        grade: 'A',
-        completedTopics: 18,
-        totalTopics: 20,
-        color: Colors.green,
-      ),
-      const SubjectProgress(
-        subject: 'Indonesian',
-        progress: 0.88,
-        grade: 'A',
-        completedTopics: 15,
-        totalTopics: 17,
-        color: Colors.red,
-      ),
-    ];
-
-    final overallProgress =
-        subjects.map((s) => s.progress).reduce((a, b) => a + b) /
-        subjects.length;
-
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: Text('Student Progress'),
+        title: const Text('Student Progress'),
         leading: IconButton(
           icon: const Icon(Iconsax.arrow_left),
           onPressed: () => context.pop(),
         ),
+        actions: [
+          IconButton(icon: const Icon(Iconsax.refresh), onPressed: _refresh),
+        ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppDimensions.paddingM),
+      body: FutureBuilder<List<StudentProgressGraphScoreItem>>(
+        future: _progressFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting &&
+              !snapshot.hasData) {
+            return _buildLoadingState();
+          }
+
+          if (snapshot.hasError) {
+            return _buildErrorState(snapshot.error.toString());
+          }
+
+          final allItems = snapshot.data ?? <StudentProgressGraphScoreItem>[];
+          if (allItems.isEmpty) {
+            return _buildEmptyState();
+          }
+
+          final termOptions = _buildTermOptions(allItems);
+          if ((_selectedTerm == null || _selectedTerm!.isEmpty) &&
+              termOptions.isNotEmpty) {
+            _selectedTerm = termOptions.first;
+          }
+
+          final filtered = _filterByTerm(allItems);
+          if (filtered.isEmpty) {
+            return _buildEmptyState();
+          }
+
+          final averageScore =
+              filtered.map((e) => e.finalGrade).reduce((a, b) => a + b) /
+              filtered.length;
+          final best = filtered.reduce(
+            (value, element) =>
+                value.finalGrade >= element.finalGrade ? value : element,
+          );
+
+          return RefreshIndicator(
+            color: AppColors.primary,
+            onRefresh: _refresh,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(AppDimensions.paddingM),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSummaryCard(
+                    averageScore: averageScore,
+                    totalSubjects: filtered.length,
+                    bestSubject: best.subjectName,
+                  ),
+                  const SizedBox(height: AppDimensions.paddingM),
+                  _buildTermFilterChips(termOptions),
+                  const SizedBox(height: AppDimensions.paddingM),
+                  _buildGraphScoreCard(filtered),
+                  const SizedBox(height: AppDimensions.paddingM),
+                  const Text(
+                    'Subject Scores',
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: AppDimensions.paddingS),
+                  ...filtered.asMap().entries.map((entry) {
+                    return _buildSubjectCard(entry.value, entry.key);
+                  }),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSummaryCard({
+    required double averageScore,
+    required int totalSubjects,
+    required String bestSubject,
+  }) {
+    final averageGrade = _gradeLabel(averageScore);
+
+    return Container(
+          padding: const EdgeInsets.all(AppDimensions.paddingL),
+          decoration: BoxDecoration(
+            gradient: AppColors.primaryGradient,
+            borderRadius: BorderRadius.circular(AppDimensions.radiusL),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.25),
+                blurRadius: 12,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 92,
+                height: 92,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox(
+                      width: 92,
+                      height: 92,
+                      child: CircularProgressIndicator(
+                        value: (averageScore / 100).clamp(0, 1),
+                        strokeWidth: 8,
+                        backgroundColor: AppColors.surface.withValues(
+                          alpha: 0.28,
+                        ),
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          AppColors.surface,
+                        ),
+                      ),
+                    ),
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          averageScore.toStringAsFixed(1),
+                          style: const TextStyle(
+                            fontFamily: 'Poppins',
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textOnPrimary,
+                          ),
+                        ),
+                        Text(
+                          averageGrade,
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 11,
+                            color: AppColors.textOnPrimary.withValues(
+                              alpha: 0.9,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppDimensions.paddingL),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Progress Pencapaian',
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textOnPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: AppDimensions.paddingS),
+                    Text(
+                      'Mata pelajaran: $totalSubjects',
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 12,
+                        color: AppColors.textOnPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Terbaik: $bestSubject',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 12,
+                        color: AppColors.textOnPrimary.withValues(alpha: 0.9),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        )
+        .animate()
+        .fadeIn(duration: const Duration(milliseconds: 380))
+        .slideY(begin: -0.08, end: 0);
+  }
+
+  Widget _buildTermFilterChips(List<String> terms) {
+    return Container(
+      padding: const EdgeInsets.all(AppDimensions.paddingM),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppDimensions.radiusM),
+        border: Border.all(color: AppColors.borderLight),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Pilih Term',
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: AppDimensions.paddingS),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: terms.map((term) {
+                final isSelected = term == _selectedTerm;
+                return Padding(
+                  padding: const EdgeInsets.only(right: AppDimensions.paddingS),
+                  child: ChoiceChip(
+                    label: Text(term),
+                    selected: isSelected,
+                    showCheckmark: false,
+                    onSelected: (_) {
+                      setState(() {
+                        _selectedTerm = term;
+                      });
+                    },
+                    selectedColor: AppColors.primary.withValues(alpha: 0.18),
+                    backgroundColor: AppColors.surface,
+                    side: BorderSide(
+                      color: isSelected
+                          ? AppColors.primary
+                          : AppColors.borderLight,
+                    ),
+                    labelStyle: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isSelected
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    ).animate().fadeIn(
+      delay: const Duration(milliseconds: 60),
+      duration: const Duration(milliseconds: 300),
+    );
+  }
+
+  Widget _buildGraphScoreCard(List<StudentProgressGraphScoreItem> items) {
+    final graphItems = [...items]
+      ..sort((a, b) => b.finalGrade.compareTo(a.finalGrade));
+
+    return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(AppDimensions.paddingM),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppDimensions.radiusM),
+            border: Border.all(color: AppColors.borderLight),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Iconsax.chart_21, size: 18, color: AppColors.info),
+                  SizedBox(width: AppDimensions.paddingS),
+                  Text(
+                    'Graph Score',
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppDimensions.paddingM),
+              SizedBox(
+                height: 160,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: graphItems.asMap().entries.map((entry) {
+                    final item = entry.value;
+                    return _buildGraphBar(item, entry.key, graphItems.length);
+                  }).toList(),
+                ),
+              ),
+            ],
+          ),
+        )
+        .animate()
+        .fadeIn(
+          delay: const Duration(milliseconds: 120),
+          duration: const Duration(milliseconds: 320),
+        )
+        .slideY(begin: 0.05, end: 0);
+  }
+
+  Widget _buildGraphBar(
+    StudentProgressGraphScoreItem item,
+    int index,
+    int total,
+  ) {
+    final normalized = (item.finalGrade / 100).clamp(0.0, 1.0);
+    final color = _gradeColor(item.finalGrade);
+    final safeName = item.subjectName.trim().isEmpty ? '-' : item.subjectName;
+
+    return Expanded(
+      child: Padding(
+        padding: EdgeInsets.only(
+          right: index == total - 1 ? 0 : AppDimensions.paddingS,
+        ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            // Overall Progress Card
-            Container(
-                  padding: const EdgeInsets.all(AppDimensions.paddingL),
+            Text(
+              item.finalGrade.toStringAsFixed(0),
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
+            ),
+            const SizedBox(height: 6),
+            TweenAnimationBuilder<double>(
+              duration: Duration(milliseconds: 450 + (index * 70)),
+              curve: Curves.easeOutCubic,
+              tween: Tween<double>(begin: 0, end: normalized),
+              builder: (context, value, child) {
+                return Container(
+                  height: (value * 100) + 16,
                   decoration: BoxDecoration(
-                    gradient: AppColors.primaryGradient,
-                    borderRadius: BorderRadius.circular(AppDimensions.radiusL),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.3),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [color, color.withValues(alpha: 0.65)],
+                    ),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Row(
-                    children: [
-                      // Circular Progress
-                      SizedBox(
-                        width: 100,
-                        height: 100,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            SizedBox(
-                              width: 100,
-                              height: 100,
-                              child: CircularProgressIndicator(
-                                value: overallProgress,
-                                strokeWidth: 8,
-                                backgroundColor: AppColors.surface.withValues(
-                                  alpha: 0.3,
-                                ),
-                                valueColor: const AlwaysStoppedAnimation(
-                                  AppColors.surface,
-                                ),
-                              ),
-                            ),
-                            Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  '${(overallProgress * 100).round()}%',
-                                  style: const TextStyle(
-                                    fontFamily: 'Poppins',
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.textOnPrimary,
-                                  ),
-                                ),
-                                Text(
-                                  'Overall',
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 10,
-                                    color: AppColors.textOnPrimary.withValues(
-                                      alpha: 0.8,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: AppDimensions.paddingL),
-                      // Stats
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Academic Progress',
-                              style: const TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.textOnPrimary,
-                              ),
-                            ),
-                            const SizedBox(height: AppDimensions.paddingM),
-                            Row(
-                              children: [
-                                _buildStatItem(
-                                  'Subjects',
-                                  '${subjects.length}',
-                                ),
-                                const SizedBox(width: AppDimensions.paddingL),
-                                _buildStatItem('Avg Grade', 'A'),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-                .animate()
-                .fadeIn(duration: const Duration(milliseconds: 400))
-                .slideY(begin: -0.2, end: 0),
-            const SizedBox(height: AppDimensions.paddingXL),
-            // Subject Progress
-            Text(
-              'Subject Progress',
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ).animate().fadeIn(
-              delay: const Duration(milliseconds: 200),
-              duration: const Duration(milliseconds: 400),
+                );
+              },
             ),
-            const SizedBox(height: AppDimensions.paddingM),
-            ...subjects.asMap().entries.map((entry) {
-              return _buildSubjectCard(entry.value, entry.key);
-            }),
-            const SizedBox(height: AppDimensions.paddingL),
-            // Achievements Section
+            const SizedBox(height: 6),
             Text(
-              'Achievements',
+              safeName,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
               style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                fontFamily: 'Inter',
+                fontSize: 10,
+                color: AppColors.textSecondary,
+                height: 1.2,
               ),
-            ).animate().fadeIn(
-              delay: const Duration(milliseconds: 400),
-              duration: const Duration(milliseconds: 400),
-            ),
-            const SizedBox(height: AppDimensions.paddingM),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildAchievementCard(
-                    icon: Iconsax.medal_star,
-                    title: 'Top Performer',
-                    subtitle: 'Biology',
-                    color: Colors.amber,
-                  ),
-                ),
-                const SizedBox(width: AppDimensions.paddingM),
-                Expanded(
-                  child: _buildAchievementCard(
-                    icon: Iconsax.trend_up,
-                    title: 'Most Improved',
-                    subtitle: 'Chemistry',
-                    color: AppColors.success,
-                  ),
-                ),
-              ],
-            ).animate().fadeIn(
-              delay: const Duration(milliseconds: 500),
-              duration: const Duration(milliseconds: 400),
             ),
           ],
         ),
@@ -264,35 +556,11 @@ class StudentProgressScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatItem(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          value,
-          style: const TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textOnPrimary,
-          ),
-        ),
-        Text(
-          label,
-          style: TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 12,
-            color: AppColors.textOnPrimary.withValues(alpha: 0.8),
-          ),
-        ),
-      ],
-    );
-  }
+  Widget _buildSubjectCard(StudentProgressGraphScoreItem item, int index) {
+    final normalized = (item.finalGrade / 100).clamp(0.0, 1.0);
+    final color = _gradeColor(item.finalGrade);
+    final safeName = item.subjectName.trim().isEmpty ? '-' : item.subjectName;
 
-  Widget _buildSubjectCard(
-    SubjectProgress subject,
-    int index,
-  ) {
     return Card(
           elevation: AppDimensions.elevationS,
           margin: const EdgeInsets.only(bottom: AppDimensions.paddingM),
@@ -309,46 +577,34 @@ class StudentProgressScreen extends StatelessWidget {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: subject.color.withValues(alpha: 0.1),
+                        color: color.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(
                           AppDimensions.radiusS,
                         ),
                       ),
-                      child: Center(
-                        child: Text(
-                          subject.subject[0],
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: subject.color,
-                          ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        safeName[0].toUpperCase(),
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: color,
                         ),
                       ),
                     ),
                     const SizedBox(width: AppDimensions.paddingM),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            subject.subject,
-                            style: const TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          Text(
-                            '${subject.completedTopics}/${subject.totalTopics} ${'topics'}',
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
+                      child: Text(
+                        safeName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
                     ),
                     Container(
@@ -357,44 +613,43 @@ class StudentProgressScreen extends StatelessWidget {
                         vertical: AppDimensions.paddingS,
                       ),
                       decoration: BoxDecoration(
-                        color: subject.color.withValues(alpha: 0.1),
+                        color: color.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(
                           AppDimensions.radiusS,
                         ),
                       ),
                       child: Text(
-                        subject.grade,
+                        item.finalGrade.toStringAsFixed(0),
                         style: TextStyle(
                           fontFamily: 'Poppins',
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: subject.color,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: color,
                         ),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: AppDimensions.paddingM),
-                // Progress Bar
                 Row(
                   children: [
                     Expanded(
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
+                        borderRadius: BorderRadius.circular(6),
                         child: LinearProgressIndicator(
-                          value: subject.progress,
-                          backgroundColor: AppColors.borderLight,
-                          valueColor: AlwaysStoppedAnimation(subject.color),
+                          value: normalized,
                           minHeight: 8,
+                          backgroundColor: AppColors.borderLight,
+                          valueColor: AlwaysStoppedAnimation<Color>(color),
                         ),
                       ),
                     ),
                     const SizedBox(width: AppDimensions.paddingM),
                     Text(
-                      '${(subject.progress * 100).round()}%',
+                      '${(normalized * 100).round()}%',
                       style: const TextStyle(
                         fontFamily: 'Poppins',
-                        fontSize: 14,
+                        fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: AppColors.textPrimary,
                       ),
@@ -407,53 +662,73 @@ class StudentProgressScreen extends StatelessWidget {
         )
         .animate()
         .fadeIn(
-          delay: Duration(milliseconds: 100 * index + 300),
-          duration: const Duration(milliseconds: 400),
+          delay: Duration(milliseconds: 140 + (index * 45)),
+          duration: const Duration(milliseconds: 280),
         )
-        .slideX(begin: 0.1, end: 0);
+        .slideX(begin: 0.06, end: 0);
   }
 
-  Widget _buildAchievementCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required Color color,
-  }) {
-    return Card(
-      elevation: AppDimensions.elevationS,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppDimensions.radiusM),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppDimensions.paddingM),
-        child: Column(
-          children: [
-            Container(
+  Widget _buildLoadingState() {
+    return ListView.builder(
+      padding: const EdgeInsets.all(AppDimensions.paddingM),
+      itemCount: 5,
+      itemBuilder: (context, index) {
+        return Shimmer.fromColors(
+          baseColor: AppColors.border,
+          highlightColor: AppColors.surface,
+          child: Card(
+            margin: const EdgeInsets.only(bottom: AppDimensions.paddingM),
+            child: Padding(
               padding: const EdgeInsets.all(AppDimensions.paddingM),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 130,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                  const SizedBox(height: AppDimensions.paddingS),
+                  Container(
+                    width: double.infinity,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                ],
               ),
-              child: Icon(icon, color: color, size: 28),
             ),
-            const SizedBox(height: AppDimensions.paddingS),
-            Text(
-              title,
-              style: const TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 11,
-                color: AppColors.textSecondary,
-              ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingL),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Iconsax.chart_21,
+              size: 44,
+              color: AppColors.textSecondary.withValues(alpha: 0.75),
+            ),
+            const SizedBox(height: AppDimensions.paddingM),
+            const Text(
+              'Data progress belum tersedia',
               textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 2),
-            Text(
-              subtitle,
               style: TextStyle(
-                fontFamily: 'Poppins',
+                fontFamily: 'Inter',
                 fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: color,
+                color: AppColors.textSecondary,
               ),
             ),
           ],
@@ -461,7 +736,34 @@ class StudentProgressScreen extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildErrorState(String message) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingL),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Iconsax.warning_2, size: 40, color: AppColors.warning),
+            const SizedBox(height: AppDimensions.paddingM),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: AppDimensions.paddingM),
+            ElevatedButton.icon(
+              onPressed: _refresh,
+              icon: const Icon(Iconsax.refresh),
+              label: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
-
-
-

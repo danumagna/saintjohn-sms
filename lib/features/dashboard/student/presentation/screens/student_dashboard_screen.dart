@@ -5,8 +5,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 
+import '../../../../../core/network/api_client.dart';
+import '../../../../../core/network/api_endpoints.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/constants/app_dimensions.dart';
+import '../../../../../features/academic_calendar/data/repositories/academic_calendar_repository.dart';
+import '../../../../../features/reports/data/models/attendance_chart_data.dart';
+import '../../../../../features/reports/data/repositories/attendance_report_repository.dart';
+import '../../../../../features/schedule/data/repositories/schedule_repository.dart';
 import '../../../../../routing/app_router.dart';
 import '../../../../../shared/utils/current_user_session_storage.dart';
 import '../../../../../shared/data/dummy/dummy_users.dart';
@@ -14,6 +20,56 @@ import '../../../../../shared/providers/shared_providers.dart';
 import '../../../../../shared/widgets/avatar/user_profile_avatar.dart';
 import '../../../../../shared/widgets/cards/menu_card.dart';
 import '../../../../auth/providers/auth_provider.dart';
+import '../../../../auth/domain/entities/user.dart';
+
+class _TodaySummaryData {
+  final String classesToday;
+  final String academicCalendar;
+  final String attendanceRate;
+  final String examsToday;
+
+  const _TodaySummaryData({
+    required this.classesToday,
+    required this.academicCalendar,
+    required this.attendanceRate,
+    required this.examsToday,
+  });
+
+  factory _TodaySummaryData.empty() {
+    return const _TodaySummaryData(
+      classesToday: '0',
+      academicCalendar: '0',
+      attendanceRate: '0%',
+      examsToday: '0',
+    );
+  }
+}
+
+class _AssessmentMonitoringSummaryItem {
+  final String assessmentTypeName;
+  final String statusName;
+  final String? score;
+  final DateTime? assignDate;
+  final DateTime? deadline;
+
+  const _AssessmentMonitoringSummaryItem({
+    required this.assessmentTypeName,
+    required this.statusName,
+    required this.score,
+    required this.assignDate,
+    required this.deadline,
+  });
+
+  factory _AssessmentMonitoringSummaryItem.fromJson(Map<String, dynamic> json) {
+    return _AssessmentMonitoringSummaryItem(
+      assessmentTypeName: json['assessment_type_name']?.toString().trim() ?? '',
+      statusName: json['status_name']?.toString().trim() ?? '',
+      score: json['score']?.toString(),
+      assignDate: DateTime.tryParse(json['assign_date']?.toString() ?? ''),
+      deadline: DateTime.tryParse(json['deadline']?.toString() ?? ''),
+    );
+  }
+}
 
 /// Student dashboard screen.
 class StudentDashboardScreen extends ConsumerStatefulWidget {
@@ -27,10 +83,18 @@ class StudentDashboardScreen extends ConsumerStatefulWidget {
 class _StudentDashboardScreenState
     extends ConsumerState<StudentDashboardScreen> {
   bool _isProfileSyncInProgress = false;
+  final ApiClient _apiClient = ApiClient();
+  final ScheduleRepository _scheduleRepository = ScheduleRepository();
+  final AcademicCalendarRepository _calendarRepository =
+      AcademicCalendarRepository();
+  final AttendanceReportRepository _attendanceRepository =
+      AttendanceReportRepository();
+  late Future<_TodaySummaryData> _todaySummaryFuture;
 
   @override
   void initState() {
     super.initState();
+    _todaySummaryFuture = _loadTodaySummary();
     Future<void>.microtask(_syncStudentProfile);
   }
 
@@ -120,11 +184,252 @@ class _StudentDashboardScreenState
         ref.read(currentUserPhotoBytesProvider.notifier).state = null;
       }
       await saveCurrentUserSessionIfRemembered(updatedUser);
+
+      if (mounted) {
+        setState(() {
+          _todaySummaryFuture = _loadTodaySummary();
+        });
+      }
     } catch (_) {
       // Keep UI resilient; dashboard remains usable with existing state.
     } finally {
       _isProfileSyncInProgress = false;
     }
+  }
+
+  int? _resolveStudentId(User user) {
+    if ((user.studentId ?? 0) > 0) {
+      return user.studentId;
+    }
+
+    final children = user.childrenStudentId;
+    if (children != null) {
+      for (final id in children) {
+        if (id > 0) {
+          return id;
+        }
+      }
+    }
+
+    final parsed = int.tryParse(user.id);
+    if ((parsed ?? 0) > 0) {
+      return parsed;
+    }
+
+    return null;
+  }
+
+  int? _resolveNidUser(User user) {
+    final parsed = int.tryParse(user.id);
+    if ((parsed ?? 0) > 0) {
+      return parsed;
+    }
+    return _resolveStudentId(user);
+  }
+
+  bool _isSameDate(DateTime date, DateTime other) {
+    final localDate = date.toLocal();
+    final localOther = other.toLocal();
+    return localDate.year == localOther.year &&
+        localDate.month == localOther.month &&
+        localDate.day == localOther.day;
+  }
+
+  bool _isExamType(String assessmentTypeName) {
+    final normalized = assessmentTypeName.toLowerCase();
+    return normalized.contains('exam') ||
+        normalized.contains('ujian') ||
+        normalized.contains('test');
+  }
+
+  Future<List<_AssessmentMonitoringSummaryItem>> _loadAssessmentItems({
+    required int studentId,
+    required int status,
+    required String authToken,
+  }) async {
+    if (authToken.trim().isNotEmpty) {
+      _apiClient.setAuthToken(authToken);
+    }
+
+    final response = await _apiClient.post<dynamic>(
+      ApiEndpoints.assessmentMonitoringStatus,
+      data: <String, dynamic>{
+        'search': <String, dynamic>{'nid_student': studentId, 'status': status},
+      },
+    );
+
+    final payload = response.data;
+    if (payload is! Map<String, dynamic>) {
+      return <_AssessmentMonitoringSummaryItem>[];
+    }
+
+    if (payload['status']?.toString() != '1') {
+      return <_AssessmentMonitoringSummaryItem>[];
+    }
+
+    final rawData = payload['data'];
+    if (rawData is! List) {
+      return <_AssessmentMonitoringSummaryItem>[];
+    }
+
+    return rawData
+        .whereType<Map>()
+        .map(
+          (item) => _AssessmentMonitoringSummaryItem.fromJson(
+            Map<String, dynamic>.from(item),
+          ),
+        )
+        .toList();
+  }
+
+  Future<_TodaySummaryData> _loadTodaySummary() async {
+    final user = ref.read(currentUserProvider);
+    if (user == null || !user.isStudent) {
+      return _TodaySummaryData.empty();
+    }
+
+    final studentId = _resolveStudentId(user);
+    final nidUser = _resolveNidUser(user);
+    if ((studentId ?? 0) <= 0 || (nidUser ?? 0) <= 0) {
+      return _TodaySummaryData.empty();
+    }
+
+    final authToken = user.userToken?.trim() ?? '';
+    final today = DateTime.now();
+
+    int examsToday = 0;
+    try {
+      final statuses = <int>[1, 2, 3, 4];
+      final lists = await Future.wait(
+        statuses.map(
+          (status) => _loadAssessmentItems(
+            studentId: studentId!,
+            status: status,
+            authToken: authToken,
+          ),
+        ),
+      );
+
+      final allAssessmentItems = lists.expand((items) => items).toList();
+
+      examsToday = allAssessmentItems.where((item) {
+        if (!_isExamType(item.assessmentTypeName)) {
+          return false;
+        }
+        final dueDate = item.deadline ?? item.assignDate;
+        if (dueDate == null) {
+          return false;
+        }
+        return _isSameDate(dueDate, today);
+      }).length;
+    } catch (_) {
+      // Keep dashboard usable if assessment API is temporarily unavailable.
+    }
+
+    int classesToday = 0;
+    try {
+      final classId = await _scheduleRepository.getClassIdByNidUser(
+        nidUser: nidUser!,
+        authToken: authToken,
+      );
+      final scheduleByDay = await _scheduleRepository.getStudentSchedule(
+        nidSchoolClass: classId.toString(),
+        authToken: authToken,
+      );
+      final weekday = today.weekday;
+      classesToday = scheduleByDay[weekday]?.length ?? 0;
+    } catch (_) {
+      // Keep default value.
+    }
+
+    int calendarCount = 0;
+    try {
+      final entries = await _calendarRepository.getParentCalendar(
+        id: user.id,
+        loginType: user.role,
+        nidStudent: studentId.toString(),
+        authToken: authToken,
+      );
+      final startOfToday = DateTime(today.year, today.month, today.day);
+      calendarCount = entries
+          .where((entry) => !entry.dateEnd.isBefore(startOfToday))
+          .length;
+    } catch (_) {
+      // Keep default value.
+    }
+
+    AttendanceChartData? attendance;
+    try {
+      attendance = await _attendanceRepository.getAttendanceChart(
+        nidUser: nidUser!,
+        nidStudent: studentId!,
+        authToken: authToken,
+      );
+    } catch (_) {
+      // Keep default value.
+    }
+
+    final attendanceRate =
+        '${(attendance?.attendanceRate ?? 0).toStringAsFixed(1)}%';
+
+    return _TodaySummaryData(
+      classesToday: '$classesToday',
+      academicCalendar: '$calendarCount',
+      attendanceRate: attendanceRate,
+      examsToday: '$examsToday',
+    );
+  }
+
+  Widget _buildTodaySummaryGrid() {
+    return FutureBuilder<_TodaySummaryData>(
+      future: _todaySummaryFuture,
+      builder: (context, snapshot) {
+        final summary = snapshot.data ?? _TodaySummaryData.empty();
+
+        return GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: 2,
+          crossAxisSpacing: AppDimensions.paddingS,
+          mainAxisSpacing: AppDimensions.paddingS,
+          childAspectRatio: 1.9,
+          children: [
+            _buildSummaryChip(
+              icon: Iconsax.user_tick,
+              iconColor: AppColors.success,
+              value: summary.attendanceRate,
+              label: 'Attendance Rate',
+              index: 0,
+              onTap: () => context.push(AppRoutes.attendanceReport),
+            ),
+            _buildSummaryChip(
+              icon: Iconsax.note,
+              iconColor: AppColors.warning,
+              value: summary.examsToday,
+              label: 'Exams Today',
+              index: 1,
+              onTap: () => context.push(AppRoutes.examSchedule),
+            ),
+            _buildSummaryChip(
+              icon: Iconsax.calendar_2,
+              iconColor: AppColors.warning,
+              value: summary.academicCalendar,
+              label: 'Academic Calendar',
+              index: 2,
+              onTap: () => context.push(AppRoutes.academicCalendar),
+            ),
+            _buildSummaryChip(
+              icon: Iconsax.calendar,
+              iconColor: AppColors.schedule,
+              value: summary.classesToday,
+              label: 'Classes Today',
+              index: 3,
+              onTap: () => context.push(AppRoutes.schedule),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -256,74 +561,7 @@ class _StudentDashboardScreenState
                       color: AppColors.info,
                     ),
                     const SizedBox(height: AppDimensions.paddingS),
-                    // Summary Section - 3 rows grid (no scroll)
-                    GridView.count(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: 3,
-                      crossAxisSpacing: AppDimensions.paddingS,
-                      mainAxisSpacing: AppDimensions.paddingS,
-                      childAspectRatio: 1.45,
-                      children: [
-                        _buildSummaryChip(
-                          icon: Iconsax.chart_2,
-                          iconColor: AppColors.secondary,
-                          value: '85.5',
-                          label: 'Avg. Score',
-                          index: 0,
-                          onTap: () => context.push(AppRoutes.assessment),
-                        ),
-                        _buildSummaryChip(
-                          icon: Iconsax.calendar,
-                          iconColor: AppColors.schedule,
-                          value: '6',
-                          label: 'Classes Today',
-                          index: 1,
-                          onTap: () => context.push(AppRoutes.schedule),
-                        ),
-                        _buildSummaryChip(
-                          icon: Iconsax.calendar_2,
-                          iconColor: AppColors.warning,
-                          value: '3',
-                          label: 'Academic Calendar',
-                          index: 2,
-                          onTap: () => context.push(AppRoutes.academicCalendar),
-                        ),
-                        _buildSummaryChip(
-                          icon: Iconsax.user_tick,
-                          iconColor: AppColors.success,
-                          value: '95%',
-                          label: 'Attendance Rate',
-                          index: 3,
-                          onTap: () => context.push(AppRoutes.attendanceReport),
-                        ),
-                        _buildSummaryChip(
-                          icon: Iconsax.note,
-                          iconColor: AppColors.success,
-                          value: '2',
-                          label: 'Exams Today',
-                          index: 4,
-                          onTap: () => context.push(AppRoutes.examSchedule),
-                        ),
-                        _buildSummaryChip(
-                          icon: Iconsax.clock,
-                          iconColor: AppColors.success,
-                          value: '4/5',
-                          label: 'Sessions Attended',
-                          index: 5,
-                          onTap: () =>
-                              context.push(AppRoutes.sessionAttendance),
-                        ),
-                        _buildSummaryChip(
-                          icon: Iconsax.trend_up,
-                          iconColor: AppColors.success,
-                          value: '78%',
-                          label: 'Overall Progress',
-                          index: 6,
-                          onTap: () => context.push(AppRoutes.studentProgress),
-                        ),
-                      ],
-                    ),
+                    _buildTodaySummaryGrid(),
                   ],
                 ),
               ),
@@ -365,11 +603,11 @@ class _StudentDashboardScreenState
                       onTap: () => context.push(AppRoutes.academicCalendar),
                     ),
                     MenuCard(
-                      title: 'Reports',
-                      icon: Iconsax.document_text,
+                      title: 'Student Attendance',
+                      icon: Iconsax.user_tick,
                       iconColor: AppColors.success,
                       index: 3,
-                      onTap: () => _showReportsBottomSheet(context),
+                      onTap: () => context.push(AppRoutes.attendanceReport),
                     ),
                   ],
                 ),
@@ -377,124 +615,6 @@ class _StudentDashboardScreenState
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  void _showReportsBottomSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppDimensions.radiusXL),
-        ),
-      ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(AppDimensions.paddingL),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.border,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: AppDimensions.paddingL),
-            Text(
-              'Reports',
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: AppDimensions.paddingL),
-            // Attendance Report
-            _buildReportItem(
-              context: context,
-              icon: Iconsax.user_tick,
-              title: 'Student Attendance',
-              color: AppColors.success,
-              onTap: () {
-                Navigator.pop(context);
-                context.push(AppRoutes.attendanceReport);
-              },
-            ),
-            // Exam Schedule
-            _buildReportItem(
-              context: context,
-              icon: Iconsax.note,
-              title: 'Today\'s Exam Schedule',
-              color: AppColors.warning,
-              onTap: () {
-                Navigator.pop(context);
-                context.push(AppRoutes.examSchedule);
-              },
-            ),
-            // Session Attendance
-            _buildReportItem(
-              context: context,
-              icon: Iconsax.clock,
-              title: 'Session Attendance Today',
-              color: AppColors.info,
-              onTap: () {
-                Navigator.pop(context);
-                context.push(AppRoutes.sessionAttendance);
-              },
-            ),
-            // Student Progress
-            _buildReportItem(
-              context: context,
-              icon: Iconsax.trend_up,
-              title: 'Student Progress',
-              color: AppColors.primary,
-              onTap: () {
-                Navigator.pop(context);
-                context.push(AppRoutes.studentProgress);
-              },
-            ),
-            const SizedBox(height: AppDimensions.paddingM),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildReportItem({
-    required BuildContext context,
-    required IconData icon,
-    required String title,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppDimensions.paddingS),
-      child: ListTile(
-        leading: Container(
-          padding: const EdgeInsets.all(AppDimensions.paddingS),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(AppDimensions.radiusS),
-          ),
-          child: Icon(icon, color: color),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        trailing: const Icon(
-          Icons.chevron_right,
-          color: AppColors.textSecondary,
-        ),
-        onTap: onTap,
       ),
     );
   }

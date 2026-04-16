@@ -41,5 +41,11 @@ class ApiEndpoints {
       '/msisms003/parent-user/get-student-schedule';
   static const String parentCalendar = '/msisms003/parent-user/parent-calendar';
   static const String attendanceChartData = '/msisms003/parent-user/chart-data';
+  static const String assessmentStatus =
+      '/msisms003/parent-user/assessment-status';
+  static const String assessmentMonitoringStatus =
+      '/msisms003/parent-user/assessment-monitoring-status';
+  static const String assessmentType =
+      '/msisms003/parent-user/get-assessment-type';
   static const String pageAccess = '/msisms006/user/page-access';
 }

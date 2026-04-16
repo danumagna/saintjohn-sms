@@ -96,16 +96,13 @@ class _AcademicCalendarScreenState
       return null;
     }
 
-    final id = user.id.trim();
-    final loginType = user.role.trim();
-    final nidStudent =
-        user.studentId?.toString() ??
-        user.childrenStudentId
-            ?.where((id) => id > 0)
-            .cast<int?>()
-            .firstWhere((_) => true, orElse: () => null)
-            ?.toString() ??
-        '';
+    final id = _resolveRequestId(user.id, user.studentId);
+    final loginType = _normalizeLoginType(user.role);
+    final nidStudent = _resolveStudentId(
+      user.studentId,
+      user.childrenStudentId,
+      user.id,
+    );
 
     if (id.isEmpty || loginType.isEmpty || nidStudent.isEmpty) {
       return null;
@@ -116,6 +113,55 @@ class _AcademicCalendarScreenState
       loginType: loginType,
       nidStudent: nidStudent,
     );
+  }
+
+  String _normalizeLoginType(String rawRole) {
+    final role = rawRole.trim().toLowerCase();
+    if (role.contains('parent')) {
+      return 'parent';
+    }
+    if (role.contains('student')) {
+      return 'student';
+    }
+    return role;
+  }
+
+  String _resolveRequestId(String rawId, int? fallbackStudentId) {
+    final parsed = int.tryParse(rawId.trim());
+    if ((parsed ?? 0) > 0) {
+      return parsed.toString();
+    }
+
+    if ((fallbackStudentId ?? 0) > 0) {
+      return fallbackStudentId.toString();
+    }
+
+    return '';
+  }
+
+  String _resolveStudentId(
+    int? directStudentId,
+    List<int>? childrenStudentIds,
+    String rawId,
+  ) {
+    if ((directStudentId ?? 0) > 0) {
+      return directStudentId.toString();
+    }
+
+    final firstChild = childrenStudentIds
+        ?.where((id) => id > 0)
+        .cast<int?>()
+        .firstWhere((_) => true, orElse: () => null);
+    if ((firstChild ?? 0) > 0) {
+      return firstChild.toString();
+    }
+
+    final parsed = int.tryParse(rawId.trim());
+    if ((parsed ?? 0) > 0) {
+      return parsed.toString();
+    }
+
+    return '';
   }
 
   Widget _buildDataState({required List<AcademicCalendarEntry> entries}) {

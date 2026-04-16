@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:image_picker/image_picker.dart';
@@ -95,19 +96,37 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _pickProfilePhoto() async {
-    final picked = await _imagePicker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 85,
-      maxWidth: 1200,
-    );
+    try {
+      final picked = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+        maxWidth: 1200,
+      );
 
-    if (picked == null || !mounted) {
-      return;
+      if (picked == null || !mounted) {
+        return;
+      }
+
+      setState(() {
+        _selectedPhoto = picked;
+      });
+    } on PlatformException catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      final message = e.message?.trim();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            message?.isNotEmpty == true
+                ? message!
+                : 'Unable to pick image right now',
+          ),
+          backgroundColor: AppColors.error,
+        ),
+      );
     }
-
-    setState(() {
-      _selectedPhoto = picked;
-    });
   }
 
   Future<void> _showPhotoSourceSheet() async => _pickProfilePhoto();
@@ -299,8 +318,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Widget _buildAvatarImage(User user) {
     if (_selectedPhoto != null) {
+      final file = File(_selectedPhoto!.path);
+      if (!file.existsSync()) {
+        return _buildAvatarFallback(user.fullName);
+      }
+
       return Image.file(
-        File(_selectedPhoto!.path),
+        file,
         fit: BoxFit.cover,
         errorBuilder: (_, error, stackTrace) {
           return _buildAvatarFallback(user.fullName);
@@ -596,6 +620,3 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 }
-
-
-

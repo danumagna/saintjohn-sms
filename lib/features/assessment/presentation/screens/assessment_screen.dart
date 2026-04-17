@@ -141,7 +141,10 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
         _apiClient.setAuthToken(token);
       }
 
-      final studentId = _resolveStudentId(user) ?? 670;
+      final studentId = _resolveStudentId(user);
+      if ((studentId ?? 0) <= 0) {
+        throw StateError('Student data is unavailable for this account');
+      }
       _activeStudentId = studentId;
 
       final response = await _apiClient.post<dynamic>(
@@ -295,7 +298,10 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
   Future<List<AssessmentMonitoringItem>> _loadMonitoringStatusItems({
     required int status,
   }) async {
-    final studentId = _activeStudentId ?? 670;
+    final studentId = _activeStudentId;
+    if ((studentId ?? 0) <= 0) {
+      throw StateError('Student data is unavailable for this account');
+    }
 
     final response = await _apiClient.post<dynamic>(
       ApiEndpoints.assessmentMonitoringStatus,
@@ -386,7 +392,11 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
       _statusFutures[status] = _loadMonitoringStatusItems(status: status);
     });
 
-    await _statusFutures[status];
+    try {
+      await _statusFutures[status];
+    } catch (_) {
+      // FutureBuilder will render the error state for this tab.
+    }
   }
 
   String _normalizeStatusName(String value) {
@@ -576,9 +586,10 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
 
   Widget _buildStatusContent(AssessmentStatusItem item) {
     final statusColor = _colorForStatus(item.statusName);
-    final statusFuture =
-        _statusFutures[item.status] ??
-        _loadMonitoringStatusItems(status: item.status);
+    final statusFuture = _statusFutures.putIfAbsent(
+      item.status,
+      () => _loadMonitoringStatusItems(status: item.status),
+    );
 
     return FutureBuilder<List<AssessmentMonitoringItem>>(
       future: statusFuture,

@@ -79,6 +79,7 @@ class _ExamScheduleScreenState extends ConsumerState<ExamScheduleScreen> {
   bool _isRefreshing = false;
   String? _errorMessage;
   List<ExamItem> _exams = <ExamItem>[];
+  int _loadRequestVersion = 0;
 
   @override
   void initState() {
@@ -372,6 +373,15 @@ class _ExamScheduleScreenState extends ConsumerState<ExamScheduleScreen> {
   }
 
   Future<void> _loadExamSchedule({bool isRefresh = false}) async {
+    if (_isLoading && !isRefresh) {
+      return;
+    }
+    if (_isRefreshing) {
+      return;
+    }
+
+    final requestVersion = ++_loadRequestVersion;
+
     if (!mounted) {
       return;
     }
@@ -419,7 +429,7 @@ class _ExamScheduleScreenState extends ConsumerState<ExamScheduleScreen> {
               .toList()
             ..sort((a, b) => a.date.compareTo(b.date));
 
-      if (!mounted) {
+      if (!mounted || requestVersion != _loadRequestVersion) {
         return;
       }
 
@@ -429,7 +439,7 @@ class _ExamScheduleScreenState extends ConsumerState<ExamScheduleScreen> {
         _isRefreshing = false;
       });
     } catch (error) {
-      if (!mounted) {
+      if (!mounted || requestVersion != _loadRequestVersion) {
         return;
       }
 

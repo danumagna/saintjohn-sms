@@ -26,6 +26,7 @@ class _StudentProgressScreenState extends ConsumerState<StudentProgressScreen> {
   final StudentProgressRepository _repository = StudentProgressRepository();
 
   late Future<List<StudentProgressGraphScoreItem>> _progressFuture;
+  bool _isRefreshing = false;
 
   @override
   void initState() {
@@ -102,10 +103,26 @@ class _StudentProgressScreenState extends ConsumerState<StudentProgressScreen> {
   }
 
   Future<void> _refresh() async {
+    if (_isRefreshing) {
+      return;
+    }
+
     setState(() {
+      _isRefreshing = true;
       _progressFuture = _loadProgress();
     });
-    await _progressFuture;
+
+    try {
+      await _progressFuture;
+    } catch (_) {
+      // UI already handles error state via FutureBuilder.
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRefreshing = false;
+        });
+      }
+    }
   }
 
   Color _gradeColor(double grade) {
@@ -130,7 +147,16 @@ class _StudentProgressScreenState extends ConsumerState<StudentProgressScreen> {
           onPressed: () => context.pop(),
         ),
         actions: [
-          IconButton(icon: const Icon(Iconsax.refresh), onPressed: _refresh),
+          IconButton(
+            icon: _isRefreshing
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Iconsax.refresh),
+            onPressed: _isRefreshing ? null : _refresh,
+          ),
         ],
       ),
       body: FutureBuilder<List<StudentProgressGraphScoreItem>>(

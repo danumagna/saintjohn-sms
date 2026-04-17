@@ -133,7 +133,7 @@ class ParentDashboardScreen extends ConsumerWidget {
                   crossAxisCount: 2,
                   crossAxisSpacing: AppDimensions.paddingM,
                   mainAxisSpacing: AppDimensions.paddingM,
-                  childAspectRatio: 1.0,
+                  childAspectRatio: 0.9,
                 ),
                 delegate: SliverChildListDelegate([
                   // Students Menu

@@ -13,7 +13,6 @@ import '../../../../../core/network/api_client.dart';
 import '../../../../../core/network/api_endpoints.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/constants/app_dimensions.dart';
-import '../../../../../features/reports/data/models/attendance_chart_data.dart';
 import '../../../../../features/reports/data/repositories/attendance_report_repository.dart';
 import '../../../../../features/reports/data/repositories/student_progress_repository.dart';
 import '../../../../../features/schedule/data/repositories/schedule_repository.dart';
@@ -96,6 +95,18 @@ class _StudentDashboardScreenState
   final StudentProgressRepository _studentProgressRepository =
       StudentProgressRepository();
   late Future<_TodaySummaryData> _todaySummaryFuture;
+
+  bool _hasSummaryIdentityChanged(User before, User after) {
+    final beforeChildren = (before.childrenStudentId ?? <int>[]).join(',');
+    final afterChildren = (after.childrenStudentId ?? <int>[]).join(',');
+
+    return before.id != after.id ||
+        before.role != after.role ||
+        before.userToken != after.userToken ||
+        before.studentId != after.studentId ||
+        before.classId != after.classId ||
+        beforeChildren != afterChildren;
+  }
 
   @override
   void initState() {
@@ -206,7 +217,7 @@ class _StudentDashboardScreenState
       }
       await saveCurrentUserSessionIfRemembered(updatedUser);
 
-      if (mounted) {
+      if (mounted && _hasSummaryIdentityChanged(user, updatedUser)) {
         setState(() {
           _todaySummaryFuture = _loadTodaySummary();
         });
@@ -366,6 +377,106 @@ class _StudentDashboardScreenState
         .toList();
   }
 
+  Future<int> _fetchExamsToday({
+    required int studentId,
+    required String authToken,
+    required DateTime today,
+  }) async {
+    try {
+      final statuses = <int>[1, 2, 3, 4];
+      final lists = await Future.wait(
+        statuses.map(
+          (status) => _loadAssessmentItems(
+            studentId: studentId,
+            status: status,
+            authToken: authToken,
+          ),
+        ),
+      );
+
+      final allAssessmentItems = lists.expand((items) => items).toList();
+      return allAssessmentItems.where((item) {
+        final assignDate = item.assignDate;
+        final deadlineDate = item.deadline;
+        return (assignDate != null && _isSameDate(assignDate, today)) ||
+            (deadlineDate != null && _isSameDate(deadlineDate, today));
+      }).length;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  Future<int> _fetchClassesToday({
+    required int nidUser,
+    required String authToken,
+    required DateTime today,
+  }) async {
+    try {
+      final classId = await _scheduleRepository.getClassIdByNidUser(
+        nidUser: nidUser,
+        authToken: authToken,
+      );
+      final scheduleByDay = await _scheduleRepository.getStudentSchedule(
+        nidSchoolClass: classId.toString(),
+        authToken: authToken,
+      );
+      final weekday = today.weekday;
+      return scheduleByDay[weekday]?.length ?? 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  Future<double> _fetchAverageScore({
+    required User user,
+    required int studentId,
+    required String authToken,
+  }) async {
+    try {
+      final normalizedLoginType = _normalizeProgressLoginType(user.role);
+      final parsedUserId = int.tryParse(user.id);
+      final requestId = (parsedUserId ?? 0) > 0
+          ? parsedUserId.toString()
+          : studentId.toString();
+      final loginType = studentId > 0 ? 'student' : normalizedLoginType;
+
+      final progressItems = await _studentProgressRepository.getGraphScores(
+        id: requestId,
+        loginType: loginType,
+        student: studentId.toString(),
+        authToken: authToken,
+      );
+
+      if (progressItems.isEmpty) {
+        return 0;
+      }
+
+      final totalScore = progressItems
+          .map((item) => item.finalGrade)
+          .reduce((a, b) => a + b);
+      return totalScore / progressItems.length;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  Future<double> _fetchAttendanceRate({
+    required int nidUser,
+    required int studentId,
+    required String authToken,
+  }) async {
+    try {
+      final attendance = await _attendanceRepository.getAttendanceChart(
+        nidUser: nidUser,
+        nidStudent: studentId,
+        authToken: authToken,
+      );
+      return attendance.attendanceRate;
+    } catch (_) {
+      return 0;
+    }
+  }
+
   Future<_TodaySummaryData> _loadTodaySummary() async {
     final user = ref.read(currentUserProvider);
     if (user == null || !user.isStudent) {
@@ -383,86 +494,34 @@ class _StudentDashboardScreenState
     final authToken = user.userToken?.trim() ?? '';
     final today = DateTime.now();
 
-    int examsToday = 0;
-    try {
-      final statuses = <int>[1, 2, 3, 4];
-      final lists = await Future.wait(
-        statuses.map(
-          (status) => _loadAssessmentItems(
-            studentId: resolvedStudentId,
-            status: status,
-            authToken: authToken,
-          ),
-        ),
-      );
-
-      final allAssessmentItems = lists.expand((items) => items).toList();
-
-      examsToday = allAssessmentItems.where((item) {
-        final assignDate = item.assignDate;
-        final deadlineDate = item.deadline;
-        return (assignDate != null && _isSameDate(assignDate, today)) ||
-            (deadlineDate != null && _isSameDate(deadlineDate, today));
-      }).length;
-    } catch (_) {
-      // Keep dashboard usable if assessment API is temporarily unavailable.
-    }
-
-    int classesToday = 0;
-    try {
-      final classId = await _scheduleRepository.getClassIdByNidUser(
+    final results = await Future.wait<dynamic>([
+      _fetchExamsToday(
+        studentId: resolvedStudentId,
+        authToken: authToken,
+        today: today,
+      ),
+      _fetchClassesToday(
         nidUser: resolvedNidUser,
         authToken: authToken,
-      );
-      final scheduleByDay = await _scheduleRepository.getStudentSchedule(
-        nidSchoolClass: classId.toString(),
+        today: today,
+      ),
+      _fetchAverageScore(
+        user: user,
+        studentId: resolvedStudentId,
         authToken: authToken,
-      );
-      final weekday = today.weekday;
-      classesToday = scheduleByDay[weekday]?.length ?? 0;
-    } catch (_) {
-      // Keep default value.
-    }
-
-    double averageScore = 0;
-    try {
-      final normalizedLoginType = _normalizeProgressLoginType(user.role);
-      final parsedUserId = int.tryParse(user.id);
-      final requestId = (parsedUserId ?? 0) > 0
-          ? parsedUserId.toString()
-          : resolvedStudentId.toString();
-      final loginType = resolvedStudentId > 0 ? 'student' : normalizedLoginType;
-
-      final progressItems = await _studentProgressRepository.getGraphScores(
-        id: requestId,
-        loginType: loginType,
-        student: resolvedStudentId.toString(),
-        authToken: authToken,
-      );
-
-      if (progressItems.isNotEmpty) {
-        final totalScore = progressItems
-            .map((item) => item.finalGrade)
-            .reduce((a, b) => a + b);
-        averageScore = totalScore / progressItems.length;
-      }
-    } catch (_) {
-      // Keep default value.
-    }
-
-    AttendanceChartData? attendance;
-    try {
-      attendance = await _attendanceRepository.getAttendanceChart(
+      ),
+      _fetchAttendanceRate(
         nidUser: resolvedNidUser,
-        nidStudent: resolvedStudentId,
+        studentId: resolvedStudentId,
         authToken: authToken,
-      );
-    } catch (_) {
-      // Keep default value.
-    }
+      ),
+    ]);
 
-    final attendanceRate =
-        '${(attendance?.attendanceRate ?? 0).toStringAsFixed(1)}%';
+    final examsToday = results[0] as int;
+    final classesToday = results[1] as int;
+    final averageScore = results[2] as double;
+    final attendanceRateValue = results[3] as double;
+    final attendanceRate = '${attendanceRateValue.toStringAsFixed(1)}%';
 
     return _TodaySummaryData(
       classesToday: '$classesToday',

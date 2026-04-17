@@ -18,6 +18,16 @@ class Student {
   final String paymentMethod;
   final String parentId;
   final String status;
+  final String statusTitle;
+  final String statusDescription;
+  final String sourceType;
+  final String registrationId;
+  final String homeRoomTeacher;
+  final String reregisterOpenStatus;
+  final String registrationFeeStatus;
+  final String buildingFeeStatus;
+  final String testInformation;
+  final String profileDataInformation;
   final String? avatarUrl;
   final DateTime createdAt;
 
@@ -40,6 +50,16 @@ class Student {
     required this.paymentMethod,
     required this.parentId,
     this.status = 'Active',
+    this.statusTitle = 'Status Aktif',
+    this.statusDescription = 'Data siswa aktif.',
+    this.sourceType = 'student',
+    this.registrationId = '-',
+    this.homeRoomTeacher = '-',
+    this.reregisterOpenStatus = '-',
+    this.registrationFeeStatus = '-',
+    this.buildingFeeStatus = '-',
+    this.testInformation = '-',
+    this.profileDataInformation = '-',
     this.avatarUrl,
     required this.createdAt,
   });
@@ -66,6 +86,16 @@ class Student {
     String? paymentMethod,
     String? parentId,
     String? status,
+    String? statusTitle,
+    String? statusDescription,
+    String? sourceType,
+    String? registrationId,
+    String? homeRoomTeacher,
+    String? reregisterOpenStatus,
+    String? registrationFeeStatus,
+    String? buildingFeeStatus,
+    String? testInformation,
+    String? profileDataInformation,
     String? avatarUrl,
     DateTime? createdAt,
   }) {
@@ -88,6 +118,18 @@ class Student {
       paymentMethod: paymentMethod ?? this.paymentMethod,
       parentId: parentId ?? this.parentId,
       status: status ?? this.status,
+      statusTitle: statusTitle ?? this.statusTitle,
+      statusDescription: statusDescription ?? this.statusDescription,
+      sourceType: sourceType ?? this.sourceType,
+      registrationId: registrationId ?? this.registrationId,
+      homeRoomTeacher: homeRoomTeacher ?? this.homeRoomTeacher,
+      reregisterOpenStatus: reregisterOpenStatus ?? this.reregisterOpenStatus,
+      registrationFeeStatus:
+          registrationFeeStatus ?? this.registrationFeeStatus,
+      buildingFeeStatus: buildingFeeStatus ?? this.buildingFeeStatus,
+      testInformation: testInformation ?? this.testInformation,
+      profileDataInformation:
+          profileDataInformation ?? this.profileDataInformation,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       createdAt: createdAt ?? this.createdAt,
     );

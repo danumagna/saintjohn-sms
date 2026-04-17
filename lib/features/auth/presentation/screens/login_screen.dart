@@ -40,7 +40,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   static const String _studentEmail = 'siswaaja@gmail.com';
   static const String _studentPassword = 'Msi010803!';
   static const String _parentEmail = 'regiscaptcha@gmail.com';
-  static const String _parentPassword = '123456';
+  static const String _parentPassword = 'Msi010803!';
 
   @override
   void initState() {
@@ -150,7 +150,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -411,8 +410,3 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
   }
 }
-
-
-
-
-

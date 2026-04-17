@@ -61,15 +61,20 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
 
     int compareStatus(String a, String b) {
       const order = <String, int>{
-        'active': 0,
-        'gratis': 1,
-        'sudah diproses': 2,
-        'belum diproses': 3,
-        'menunggu': 4,
-        'diumumkan': 5,
-        'lulus': 6,
-        'negosiasi': 7,
-        'tidak lulus': 8,
+        'siswa aktif': 0,
+        'daftar ulang berhasil': 1,
+        'menunggu pengumuman wali kelas': 2,
+        'informasi wali kelas menunggu': 3,
+        'menunggu tes evaluasi': 4,
+        'dalam proses administrasi': 5,
+        'lengkapi profil dan pembayaran': 6,
+        'daftar ulang ditutup': 7,
+        'lulus': 8,
+        'mutasi siswa': 9,
+        'tidak lulus atau tinggal kelas': 10,
+        'mengundurkan diri': 11,
+        'dikeluarkan': 12,
+        'proses administrasi dihentikan': 13,
       };
       final rankA = order[a.trim().toLowerCase()] ?? 99;
       final rankB = order[b.trim().toLowerCase()] ?? 99;
@@ -366,7 +371,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
   }
 
   Widget _buildStudentCard(Student student) {
-    final isActive = student.status == 'Active';
+    final statusTheme = _resolveStatusTheme(student.statusTitle);
 
     return Container(
       margin: const EdgeInsets.only(bottom: AppDimensions.paddingM),
@@ -447,16 +452,28 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                                 color: Color(0xFFE8F0FF),
                               ),
                             ),
+                            const SizedBox(height: AppDimensions.paddingS),
+                            _buildStatusBadge(
+                              status: student.statusTitle,
+                              backgroundColor: statusTheme.background,
+                              borderColor: statusTheme.border,
+                              textColor: statusTheme.text,
+                            ),
                           ],
                         ),
                       ),
-                      const SizedBox(width: AppDimensions.paddingS),
-                      _buildStatusBadge(
-                        isActive: isActive,
-                        status: student.status,
-                      ),
                     ],
                   ),
+                ),
+                const SizedBox(height: AppDimensions.paddingM),
+                _buildStatusMessageBanner(
+                  title: student.statusTitle,
+                  description: student.statusDescription,
+                  icon: statusTheme.icon,
+                  backgroundColor: statusTheme.softBackground,
+                  borderColor: statusTheme.border.withValues(alpha: 0.35),
+                  iconColor: statusTheme.text,
+                  textColor: statusTheme.text,
                 ),
                 const SizedBox(height: AppDimensions.paddingM),
                 Divider(
@@ -465,15 +482,17 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                 ),
                 const SizedBox(height: AppDimensions.paddingM),
                 _buildCardMetaRow(
-                  icon: Iconsax.user,
-                  label: 'Nama',
-                  value: student.name,
+                  icon: Iconsax.category,
+                  label: 'Jenis Data',
+                  value: student.sourceType == 'candidate'
+                      ? 'Calon Peserta Didik'
+                      : 'Siswa Terdaftar',
                 ),
                 const SizedBox(height: AppDimensions.paddingS),
                 _buildCardMetaRow(
-                  icon: Iconsax.calendar_1,
-                  label: 'Tanggal lahir',
-                  value: _formatDate(student.birthDate),
+                  icon: Iconsax.user,
+                  label: 'Nama',
+                  value: student.name,
                 ),
                 const SizedBox(height: AppDimensions.paddingS),
                 _buildCardMetaRow(
@@ -483,17 +502,17 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                 ),
                 const SizedBox(height: AppDimensions.paddingS),
                 _buildCardMetaRow(
-                  icon: Iconsax.location,
-                  label: 'Alamat Sekolah',
-                  value: student.address,
-                  maxLines: 2,
+                  icon: Iconsax.calendar_1,
+                  label: 'Tahun Ajaran',
+                  value: student.academicYear,
                 ),
                 const SizedBox(height: AppDimensions.paddingS),
                 _buildCardMetaRow(
                   icon: Iconsax.book_1,
-                  label: 'Kelas',
-                  value: student.className,
+                  label: 'Jenjang / Kelas',
+                  value: '${student.schoolLevel} / ${student.className}',
                 ),
+                ..._buildSourceSpecificRows(student),
               ],
             ),
           ),
@@ -502,28 +521,213 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
     );
   }
 
-  Widget _buildStatusBadge({required bool isActive, required String status}) {
+  Widget _buildStatusBadge({
+    required String status,
+    required Color backgroundColor,
+    required Color borderColor,
+    required Color textColor,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppDimensions.paddingS,
         vertical: AppDimensions.paddingXS,
       ),
       decoration: BoxDecoration(
-        color: isActive ? AppColors.successLight : AppColors.errorLight,
-        border: Border.all(
-          color: isActive ? AppColors.success : AppColors.error,
-        ),
+        color: backgroundColor,
+        border: Border.all(color: borderColor),
         borderRadius: BorderRadius.circular(AppDimensions.radiusS),
       ),
       child: Text(
         status,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
           fontFamily: 'Inter',
           fontSize: 11,
           fontWeight: FontWeight.w700,
-          color: isActive ? AppColors.success : AppColors.error,
+          color: textColor,
         ),
       ),
+    );
+  }
+
+  Widget _buildStatusMessageBanner({
+    required String title,
+    required String description,
+    required IconData icon,
+    required Color backgroundColor,
+    required Color borderColor,
+    required Color iconColor,
+    required Color textColor,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppDimensions.paddingS),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        border: Border.all(color: borderColor),
+        borderRadius: BorderRadius.circular(AppDimensions.radiusS),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: Icon(icon, size: 14, color: iconColor),
+          ),
+          const SizedBox(width: AppDimensions.paddingS),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: textColor,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: textColor.withValues(alpha: 0.95),
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildSourceSpecificRows(Student student) {
+    if (student.sourceType == 'candidate') {
+      return <Widget>[
+        const SizedBox(height: AppDimensions.paddingS),
+        _buildCardMetaRow(
+          icon: Iconsax.document_text,
+          label: 'ID Registrasi',
+          value: student.registrationId,
+        ),
+        const SizedBox(height: AppDimensions.paddingS),
+        _buildCardMetaRow(
+          icon: Iconsax.card_edit,
+          label: 'Status Biaya Pendaftaran',
+          value: student.registrationFeeStatus,
+        ),
+        const SizedBox(height: AppDimensions.paddingS),
+        _buildCardMetaRow(
+          icon: Iconsax.money_change,
+          label: 'Status Uang Pangkal',
+          value: student.buildingFeeStatus,
+        ),
+        const SizedBox(height: AppDimensions.paddingS),
+        _buildCardMetaRow(
+          icon: Iconsax.clipboard_tick,
+          label: 'Informasi Tes',
+          value: student.testInformation,
+        ),
+        const SizedBox(height: AppDimensions.paddingS),
+        _buildCardMetaRow(
+          icon: Iconsax.profile_tick,
+          label: 'Kelengkapan Profil',
+          value: student.profileDataInformation,
+        ),
+      ];
+    }
+
+    return <Widget>[
+      const SizedBox(height: AppDimensions.paddingS),
+      _buildCardMetaRow(
+        icon: Iconsax.calendar_1,
+        label: 'Tanggal Lahir',
+        value: _formatDate(student.birthDate),
+      ),
+      const SizedBox(height: AppDimensions.paddingS),
+      _buildCardMetaRow(
+        icon: Iconsax.teacher,
+        label: 'Wali Kelas',
+        value: student.homeRoomTeacher,
+      ),
+      const SizedBox(height: AppDimensions.paddingS),
+      _buildCardMetaRow(
+        icon: Iconsax.activity,
+        label: 'Status Daftar Ulang',
+        value: student.reregisterOpenStatus,
+      ),
+      const SizedBox(height: AppDimensions.paddingS),
+      _buildCardMetaRow(
+        icon: Iconsax.location,
+        label: 'Alamat Sekolah',
+        value: student.address,
+        maxLines: 2,
+      ),
+    ];
+  }
+
+  _StatusTheme _resolveStatusTheme(String statusTitle) {
+    final status = statusTitle.toLowerCase();
+
+    if (status.contains('lulus')) {
+      return const _StatusTheme(
+        background: AppColors.successLight,
+        softBackground: Color(0xFFE9F9EF),
+        border: AppColors.success,
+        text: AppColors.success,
+        icon: Iconsax.tick_circle,
+      );
+    }
+
+    if (status.contains('ditutup') ||
+        status.contains('tidak lulus') ||
+        status.contains('dikeluarkan') ||
+        status.contains('mengundurkan') ||
+        status.contains('dihentikan')) {
+      return const _StatusTheme(
+        background: AppColors.errorLight,
+        softBackground: Color(0xFFFFF2F2),
+        border: AppColors.error,
+        text: AppColors.error,
+        icon: Iconsax.warning_2,
+      );
+    }
+
+    if (status.contains('menunggu') ||
+        status.contains('proses') ||
+        status.contains('lengkapi')) {
+      return const _StatusTheme(
+        background: Color(0xFFFFF6E8),
+        softBackground: Color(0xFFFFF9EF),
+        border: AppColors.warning,
+        text: AppColors.warning,
+        icon: Iconsax.clock,
+      );
+    }
+
+    if (status.contains('mutasi')) {
+      return const _StatusTheme(
+        background: Color(0xFFE9F4FF),
+        softBackground: Color(0xFFF2F8FF),
+        border: AppColors.info,
+        text: AppColors.info,
+        icon: Iconsax.repeat,
+      );
+    }
+
+    return const _StatusTheme(
+      background: Color(0xFFEAF6FF),
+      softBackground: Color(0xFFF2F9FF),
+      border: AppColors.primary,
+      text: AppColors.primary,
+      icon: Iconsax.info_circle,
     );
   }
 
@@ -612,7 +816,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
       height: size,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: hasAvatar
+        color: emptyBackgroundColor == null && hasAvatar
             ? AppColors.primary.withValues(alpha: 0.1)
             : fallbackBackgroundColor,
         shape: isCircle ? BoxShape.circle : BoxShape.rectangle,
@@ -701,6 +905,18 @@ enum StudentSortField {
   status,
 }
 
+class _StatusTheme {
+  final Color background;
+  final Color softBackground;
+  final Color border;
+  final Color text;
+  final IconData icon;
 
-
-
+  const _StatusTheme({
+    required this.background,
+    required this.softBackground,
+    required this.border,
+    required this.text,
+    required this.icon,
+  });
+}

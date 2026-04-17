@@ -170,6 +170,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     try {
       final authRepository = ref.read(authRepositoryProvider);
+      final authToken = user.userToken?.trim() ?? '';
+      if (authToken.isNotEmpty) {
+        authRepository.setAuthToken(authToken);
+      }
       final candidateIds = <String>{
         user.id,
         ...?user.childrenStudentId?.map((e) => e.toString()),

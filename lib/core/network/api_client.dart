@@ -9,32 +9,40 @@ typedef UnauthorizedSessionHandler = Future<void> Function();
 class ApiClient {
   static UnauthorizedSessionHandler? _unauthorizedHandler;
   static bool _isUnauthorizedFlowRunning = false;
+  static bool _interceptorsInitialized = false;
+  static final Dio _sharedDio = Dio(
+    BaseOptions(
+      baseUrl: ApiEndpoints.baseUrl,
+      connectTimeout: const Duration(seconds: 30),
+      receiveTimeout: const Duration(seconds: 30),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+    ),
+  );
 
-  late final Dio _dio;
+  final Dio _dio;
 
-  ApiClient() {
-    _dio = Dio(
-      BaseOptions(
-        baseUrl: ApiEndpoints.baseUrl,
-        connectTimeout: const Duration(seconds: 30),
-        receiveTimeout: const Duration(seconds: 30),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      ),
-    );
+  ApiClient() : _dio = _sharedDio {
+    _initializeInterceptors();
+  }
 
-    _dio.interceptors.add(
+  static void _initializeInterceptors() {
+    if (_interceptorsInitialized) {
+      return;
+    }
+
+    _sharedDio.interceptors.add(
       InterceptorsWrapper(
         onResponse: (response, handler) async {
-          if (_isTokenExpiredPayload(response.data)) {
+          if (ApiClient._isTokenExpiredPayload(response.data)) {
             await _triggerUnauthorizedHandler();
           }
           handler.next(response);
         },
         onError: (error, handler) async {
-          if (_isUnauthorizedError(error)) {
+          if (ApiClient._isUnauthorizedError(error)) {
             await _triggerUnauthorizedHandler();
           }
           handler.next(error);
@@ -44,7 +52,7 @@ class ApiClient {
 
     // Add logging interceptor in debug mode
     if (kDebugMode) {
-      _dio.interceptors.add(
+      _sharedDio.interceptors.add(
         LogInterceptor(
           request: true,
           requestHeader: true,
@@ -55,6 +63,8 @@ class ApiClient {
         ),
       );
     }
+
+    _interceptorsInitialized = true;
   }
 
   /// Registers a callback invoked once when unauthorized responses occur.
@@ -62,7 +72,7 @@ class ApiClient {
     _unauthorizedHandler = handler;
   }
 
-  Future<void> _triggerUnauthorizedHandler() async {
+  static Future<void> _triggerUnauthorizedHandler() async {
     if (_isUnauthorizedFlowRunning) {
       return;
     }
@@ -84,7 +94,7 @@ class ApiClient {
     }
   }
 
-  bool _isUnauthorizedError(DioException error) {
+  static bool _isUnauthorizedError(DioException error) {
     final statusCode = error.response?.statusCode;
     if (statusCode == 401 || statusCode == 403 || statusCode == 419) {
       return true;
@@ -93,7 +103,7 @@ class ApiClient {
     return _isTokenExpiredPayload(error.response?.data);
   }
 
-  bool _isTokenExpiredPayload(dynamic payload) {
+  static bool _isTokenExpiredPayload(dynamic payload) {
     if (payload is! Map<String, dynamic>) {
       return false;
     }
@@ -114,7 +124,7 @@ class ApiClient {
     return hasTokenKeyword && hasUnauthorizedKeyword;
   }
 
-  String _extractErrorText(Map<String, dynamic> payload) {
+  static String _extractErrorText(Map<String, dynamic> payload) {
     final message = payload['message'];
 
     if (message is String) {

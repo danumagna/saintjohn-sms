@@ -13,6 +13,7 @@ import '../../../../../shared/providers/shared_providers.dart';
 import '../../../../../shared/utils/current_user_session_storage.dart';
 import '../../../../../shared/widgets/avatar/user_profile_avatar.dart';
 import '../../../../../shared/widgets/cards/menu_card.dart';
+import '../../../../../shared/widgets/loading/shimmer_loading.dart';
 
 /// Parent dashboard screen.
 class ParentDashboardScreen extends ConsumerStatefulWidget {
@@ -24,6 +25,10 @@ class ParentDashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen> {
+  static const Duration _profileSyncTtl = Duration(minutes: 2);
+  static DateTime? _lastProfileSyncAt;
+  static String? _lastProfileSyncParentId;
+
   bool _isProfileSyncInProgress = false;
   String? _lastSyncParentId;
 
@@ -33,7 +38,20 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen> {
     Future<void>.microtask(_syncParentProfile);
   }
 
-  Future<void> _syncParentProfile() async {
+  bool _isProfileSyncStale(String parentId) {
+    if (_lastProfileSyncParentId != parentId) {
+      return true;
+    }
+
+    final lastSyncAt = _lastProfileSyncAt;
+    if (lastSyncAt == null) {
+      return true;
+    }
+
+    return DateTime.now().difference(lastSyncAt) >= _profileSyncTtl;
+  }
+
+  Future<void> _syncParentProfile({bool force = false}) async {
     if (_isProfileSyncInProgress) {
       return;
     }
@@ -48,8 +66,16 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen> {
       return;
     }
 
+    if (!force && !_isProfileSyncStale(parentId)) {
+      return;
+    }
+
     _lastSyncParentId = parentId;
-    _isProfileSyncInProgress = true;
+    if (mounted) {
+      setState(() => _isProfileSyncInProgress = true);
+    } else {
+      _isProfileSyncInProgress = true;
+    }
 
     try {
       final authRepository = ref.read(authRepositoryProvider);
@@ -99,7 +125,13 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen> {
     } catch (_) {
       // Keep dashboard usable when profile sync fails.
     } finally {
-      _isProfileSyncInProgress = false;
+      _lastProfileSyncParentId = parentId;
+      _lastProfileSyncAt = DateTime.now();
+      if (mounted) {
+        setState(() => _isProfileSyncInProgress = false);
+      } else {
+        _isProfileSyncInProgress = false;
+      }
     }
   }
 
@@ -117,13 +149,14 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen> {
   Widget build(BuildContext context) {
     final user =
         ref.watch(currentUserProvider) ?? DummyUsers.getDefaultParent();
+    final isDashboardBootstrapping = _isProfileSyncInProgress;
 
     if (user.isParent) {
       final parentId = user.id.trim();
       final shouldSync =
           parentId.isNotEmpty &&
           !_isProfileSyncInProgress &&
-          _lastSyncParentId != parentId;
+          (_lastSyncParentId != parentId || _isProfileSyncStale(parentId));
       if (shouldSync) {
         Future<void>.microtask(_syncParentProfile);
       }
@@ -145,89 +178,114 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen> {
                 child: Row(
                   children: [
                     // Avatar
-                    UserProfileAvatar(
-                          user: user,
-                          size: 50,
-                          backgroundColor: AppColors.primary.withValues(
-                            alpha: 0.1,
-                          ),
-                          textColor: AppColors.primary,
-                          fontSize: 20,
-                          fallbackLetter: 'P',
-                        )
-                        .animate()
-                        .fadeIn(duration: const Duration(milliseconds: 400))
-                        .scale(begin: const Offset(0.5, 0.5)),
+                    if (isDashboardBootstrapping)
+                      const ShimmerLoading(
+                        width: 50,
+                        height: 50,
+                        borderRadius: AppDimensions.radiusCircular,
+                      )
+                    else
+                      UserProfileAvatar(
+                            user: user,
+                            size: 50,
+                            backgroundColor: AppColors.primary.withValues(
+                              alpha: 0.1,
+                            ),
+                            textColor: AppColors.primary,
+                            fontSize: 20,
+                            fallbackLetter: 'P',
+                          )
+                          .animate()
+                          .fadeIn(duration: const Duration(milliseconds: 400))
+                          .scale(begin: const Offset(0.5, 0.5)),
                     const SizedBox(width: AppDimensions.paddingM),
                     // Welcome Text
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                                'Welcome, $firstName',
-                                style: const TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.textPrimary,
+                      child: isDashboardBootstrapping
+                          ? const Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                ShimmerLoading(width: 180, height: 18),
+                                SizedBox(height: AppDimensions.paddingS),
+                                ShimmerLoading(width: 120, height: 13),
+                              ],
+                            )
+                          : Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                      'Welcome, $firstName',
+                                      style: const TextStyle(
+                                        fontFamily: 'Poppins',
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    )
+                                    .animate()
+                                    .fadeIn(
+                                      delay: const Duration(milliseconds: 100),
+                                      duration: const Duration(
+                                        milliseconds: 400,
+                                      ),
+                                    )
+                                    .slideX(begin: 0.1, end: 0),
+                                Text(
+                                  'Login as Parent',
+                                  style: const TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 13,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ).animate().fadeIn(
+                                  delay: const Duration(milliseconds: 200),
+                                  duration: const Duration(milliseconds: 400),
                                 ),
-                              )
-                              .animate()
-                              .fadeIn(
-                                delay: const Duration(milliseconds: 100),
-                                duration: const Duration(milliseconds: 400),
-                              )
-                              .slideX(begin: 0.1, end: 0),
-                          Text(
-                            'Login as Parent',
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 13,
-                              color: AppColors.textSecondary,
+                              ],
                             ),
-                          ).animate().fadeIn(
-                            delay: const Duration(milliseconds: 200),
-                            duration: const Duration(milliseconds: 400),
-                          ),
-                        ],
-                      ),
                     ),
                     // Notification Icon
-                    IconButton(
-                      onPressed: () => context.push(AppRoutes.notifications),
-                      style: IconButton.styleFrom(
-                        backgroundColor: AppColors.surface,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                            AppDimensions.radiusM,
-                          ),
-                        ),
-                      ),
-                      icon: Stack(
-                        children: [
-                          const Icon(
-                            Iconsax.notification,
-                            color: AppColors.textPrimary,
-                          ),
-                          Positioned(
-                            right: 0,
-                            top: 0,
-                            child: Container(
-                              width: 8,
-                              height: 8,
-                              decoration: const BoxDecoration(
-                                color: AppColors.error,
-                                shape: BoxShape.circle,
-                              ),
+                    if (isDashboardBootstrapping)
+                      const ShimmerLoading(
+                        width: 44,
+                        height: 44,
+                        borderRadius: AppDimensions.radiusM,
+                      )
+                    else
+                      IconButton(
+                        onPressed: () => context.push(AppRoutes.notifications),
+                        style: IconButton.styleFrom(
+                          backgroundColor: AppColors.surface,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              AppDimensions.radiusM,
                             ),
                           ),
-                        ],
+                        ),
+                        icon: Stack(
+                          children: [
+                            const Icon(
+                              Iconsax.notification,
+                              color: AppColors.textPrimary,
+                            ),
+                            Positioned(
+                              right: 0,
+                              top: 0,
+                              child: Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                  color: AppColors.error,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ).animate().fadeIn(
+                        delay: const Duration(milliseconds: 300),
+                        duration: const Duration(milliseconds: 400),
                       ),
-                    ).animate().fadeIn(
-                      delay: const Duration(milliseconds: 300),
-                      duration: const Duration(milliseconds: 400),
-                    ),
                   ],
                 ),
               ),
@@ -244,32 +302,43 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen> {
                   mainAxisSpacing: AppDimensions.paddingM,
                   childAspectRatio: 0.9,
                 ),
-                delegate: SliverChildListDelegate([
-                  // Students Menu
-                  MenuCard(
-                    title: 'Students',
-                    icon: Iconsax.people,
-                    iconColor: AppColors.primary,
-                    index: 0,
-                    onTap: () => _showStudentsBottomSheet(context),
-                  ),
-                  // Guide Menu
-                  MenuCard(
-                    title: 'Guide',
-                    icon: Iconsax.book,
-                    iconColor: AppColors.info,
-                    index: 1,
-                    onTap: () => context.push(AppRoutes.guide),
-                  ),
-                  // Contact Us Menu
-                  MenuCard(
-                    title: 'Contact Us',
-                    icon: Iconsax.call,
-                    iconColor: AppColors.success,
-                    index: 2,
-                    onTap: () => context.push(AppRoutes.contactUs),
-                  ),
-                ]),
+                delegate: SliverChildListDelegate(
+                  isDashboardBootstrapping
+                      ? List<Widget>.generate(
+                          3,
+                          (_) => const ShimmerLoading(
+                            width: double.infinity,
+                            height: double.infinity,
+                            borderRadius: AppDimensions.radiusL,
+                          ),
+                        )
+                      : [
+                          // Students Menu
+                          MenuCard(
+                            title: 'Students',
+                            icon: Iconsax.people,
+                            iconColor: AppColors.primary,
+                            index: 0,
+                            onTap: () => _showStudentsBottomSheet(context),
+                          ),
+                          // Guide Menu
+                          MenuCard(
+                            title: 'Guide',
+                            icon: Iconsax.book,
+                            iconColor: AppColors.info,
+                            index: 1,
+                            onTap: () => context.push(AppRoutes.guide),
+                          ),
+                          // Contact Us Menu
+                          MenuCard(
+                            title: 'Contact Us',
+                            icon: Iconsax.call,
+                            iconColor: AppColors.success,
+                            index: 2,
+                            onTap: () => context.push(AppRoutes.contactUs),
+                          ),
+                        ],
+                ),
               ),
             ),
             const SliverToBoxAdapter(

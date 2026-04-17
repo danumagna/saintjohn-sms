@@ -22,6 +22,7 @@ import '../../../../../shared/data/dummy/dummy_users.dart';
 import '../../../../../shared/providers/shared_providers.dart';
 import '../../../../../shared/widgets/avatar/user_profile_avatar.dart';
 import '../../../../../shared/widgets/cards/menu_card.dart';
+import '../../../../../shared/widgets/loading/shimmer_loading.dart';
 import '../../../../auth/providers/auth_provider.dart';
 import '../../../../auth/domain/entities/user.dart';
 
@@ -85,6 +86,14 @@ class StudentDashboardScreen extends ConsumerStatefulWidget {
 
 class _StudentDashboardScreenState
     extends ConsumerState<StudentDashboardScreen> {
+  static const Duration _profileSyncTtl = Duration(minutes: 2);
+  static const Duration _summaryTtl = Duration(minutes: 2);
+  static DateTime? _lastProfileSyncAt;
+  static String? _lastProfileSyncUserKey;
+  static _TodaySummaryData? _cachedTodaySummary;
+  static DateTime? _cachedTodaySummaryAt;
+  static String? _cachedTodaySummaryUserKey;
+
   bool _isProfileSyncInProgress = false;
   DateTime _currentDateTime = DateTime.now();
   Timer? _clockTimer;
@@ -111,7 +120,7 @@ class _StudentDashboardScreenState
   @override
   void initState() {
     super.initState();
-    _todaySummaryFuture = _loadTodaySummary();
+    _todaySummaryFuture = _loadTodaySummary(useCache: true);
     _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) {
         return;
@@ -130,7 +139,42 @@ class _StudentDashboardScreenState
     super.dispose();
   }
 
-  Future<void> _syncStudentProfile() async {
+  String _buildSyncUserKey(User user) {
+    final studentId = user.studentId?.toString() ?? '';
+    final classId = user.classId?.toString() ?? '';
+    final children = (user.childrenStudentId ?? <int>[]).join(',');
+    return '${user.id}|$studentId|$classId|$children';
+  }
+
+  bool _isProfileSyncStale(User user) {
+    final key = _buildSyncUserKey(user);
+    if (_lastProfileSyncUserKey != key) {
+      return true;
+    }
+
+    final lastSyncAt = _lastProfileSyncAt;
+    if (lastSyncAt == null) {
+      return true;
+    }
+
+    return DateTime.now().difference(lastSyncAt) >= _profileSyncTtl;
+  }
+
+  bool _isSummaryCacheValid(User user) {
+    final cacheAt = _cachedTodaySummaryAt;
+    if (cacheAt == null || _cachedTodaySummary == null) {
+      return false;
+    }
+
+    final key = _buildSyncUserKey(user);
+    if (_cachedTodaySummaryUserKey != key) {
+      return false;
+    }
+
+    return DateTime.now().difference(cacheAt) < _summaryTtl;
+  }
+
+  Future<void> _syncStudentProfile({bool force = false}) async {
     if (_isProfileSyncInProgress) {
       return;
     }
@@ -139,6 +183,12 @@ class _StudentDashboardScreenState
     if (user == null || !user.isStudent) {
       return;
     }
+
+    if (!force && !_isProfileSyncStale(user)) {
+      return;
+    }
+
+    final syncUserKey = _buildSyncUserKey(user);
 
     final candidateIds = <int>{
       if (user.studentId != null) user.studentId!,
@@ -150,7 +200,11 @@ class _StudentDashboardScreenState
       return;
     }
 
-    _isProfileSyncInProgress = true;
+    if (mounted) {
+      setState(() => _isProfileSyncInProgress = true);
+    } else {
+      _isProfileSyncInProgress = true;
+    }
 
     try {
       final authRepository = ref.read(authRepositoryProvider);
@@ -219,13 +273,19 @@ class _StudentDashboardScreenState
 
       if (mounted && _hasSummaryIdentityChanged(user, updatedUser)) {
         setState(() {
-          _todaySummaryFuture = _loadTodaySummary();
+          _todaySummaryFuture = _loadTodaySummary(forceRefresh: true);
         });
       }
     } catch (_) {
       // Keep UI resilient; dashboard remains usable with existing state.
     } finally {
-      _isProfileSyncInProgress = false;
+      _lastProfileSyncUserKey = syncUserKey;
+      _lastProfileSyncAt = DateTime.now();
+      if (mounted) {
+        setState(() => _isProfileSyncInProgress = false);
+      } else {
+        _isProfileSyncInProgress = false;
+      }
     }
   }
 
@@ -477,10 +537,17 @@ class _StudentDashboardScreenState
     }
   }
 
-  Future<_TodaySummaryData> _loadTodaySummary() async {
+  Future<_TodaySummaryData> _loadTodaySummary({
+    bool useCache = false,
+    bool forceRefresh = false,
+  }) async {
     final user = ref.read(currentUserProvider);
     if (user == null || !user.isStudent) {
       return _TodaySummaryData.empty();
+    }
+
+    if (useCache && !forceRefresh && _isSummaryCacheValid(user)) {
+      return _cachedTodaySummary!;
     }
 
     final studentId = _resolveStudentId(user);
@@ -523,12 +590,18 @@ class _StudentDashboardScreenState
     final attendanceRateValue = results[3] as double;
     final attendanceRate = '${attendanceRateValue.toStringAsFixed(1)}%';
 
-    return _TodaySummaryData(
+    final summary = _TodaySummaryData(
       classesToday: '$classesToday',
       averageScore: averageScore.toStringAsFixed(1),
       attendanceRate: attendanceRate,
       examsToday: '$examsToday',
     );
+
+    _cachedTodaySummary = summary;
+    _cachedTodaySummaryAt = DateTime.now();
+    _cachedTodaySummaryUserKey = _buildSyncUserKey(user);
+
+    return summary;
   }
 
   Widget _buildTodaySummaryGrid() {
@@ -706,7 +779,7 @@ class _StudentDashboardScreenState
     }
 
     setState(() {
-      _todaySummaryFuture = _loadTodaySummary();
+      _todaySummaryFuture = _loadTodaySummary(forceRefresh: true);
     });
 
     try {
@@ -715,13 +788,14 @@ class _StudentDashboardScreenState
       // Keep refresh flow resilient when summary API fails.
     }
 
-    await _syncStudentProfile();
+    await _syncStudentProfile(force: true);
   }
 
   @override
   Widget build(BuildContext context) {
     final user =
         ref.watch(currentUserProvider) ?? DummyUsers.getDefaultStudent();
+    final isDashboardBootstrapping = _isProfileSyncInProgress;
     final firstName = user.fullName.trim().isEmpty
         ? 'Login as Student'
         : user.fullName.trim().split(RegExp(r'\s+')).first;
@@ -749,94 +823,125 @@ class _StudentDashboardScreenState
                         Row(
                           children: [
                             // Avatar
-                            UserProfileAvatar(
-                                  user: user,
-                                  size: 44,
-                                  backgroundColor: AppColors.secondary
-                                      .withValues(alpha: 0.1),
-                                  textColor: AppColors.secondary,
-                                  fontSize: 18,
-                                  fallbackLetter: 'S',
-                                )
-                                .animate()
-                                .fadeIn(
-                                  duration: const Duration(milliseconds: 400),
-                                )
-                                .scale(begin: const Offset(0.5, 0.5)),
+                            if (isDashboardBootstrapping)
+                              const ShimmerLoading(
+                                width: 44,
+                                height: 44,
+                                borderRadius: AppDimensions.radiusCircular,
+                              )
+                            else
+                              UserProfileAvatar(
+                                    user: user,
+                                    size: 44,
+                                    backgroundColor: AppColors.secondary
+                                        .withValues(alpha: 0.1),
+                                    textColor: AppColors.secondary,
+                                    fontSize: 18,
+                                    fallbackLetter: 'S',
+                                  )
+                                  .animate()
+                                  .fadeIn(
+                                    duration: const Duration(milliseconds: 400),
+                                  )
+                                  .scale(begin: const Offset(0.5, 0.5)),
                             const SizedBox(width: AppDimensions.paddingM),
                             // Welcome Text
                             Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                        'Welcome, $firstName',
-                                        style: const TextStyle(
-                                          fontFamily: 'Poppins',
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.textPrimary,
+                              child: isDashboardBootstrapping
+                                  ? const Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        ShimmerLoading(width: 160, height: 16),
+                                        SizedBox(
+                                          height: AppDimensions.paddingS,
                                         ),
-                                      )
-                                      .animate()
-                                      .fadeIn(
-                                        delay: const Duration(
-                                          milliseconds: 100,
+                                        ShimmerLoading(width: 190, height: 12),
+                                      ],
+                                    )
+                                  : Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                              'Welcome, $firstName',
+                                              style: const TextStyle(
+                                                fontFamily: 'Poppins',
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                                color: AppColors.textPrimary,
+                                              ),
+                                            )
+                                            .animate()
+                                            .fadeIn(
+                                              delay: const Duration(
+                                                milliseconds: 100,
+                                              ),
+                                              duration: const Duration(
+                                                milliseconds: 400,
+                                              ),
+                                            )
+                                            .slideX(begin: 0.1, end: 0),
+                                        _buildClassAndSchoolInfo(
+                                          user,
+                                        ).animate().fadeIn(
+                                          delay: const Duration(
+                                            milliseconds: 200,
+                                          ),
+                                          duration: const Duration(
+                                            milliseconds: 400,
+                                          ),
                                         ),
-                                        duration: const Duration(
-                                          milliseconds: 400,
-                                        ),
-                                      )
-                                      .slideX(begin: 0.1, end: 0),
-                                  _buildClassAndSchoolInfo(
-                                    user,
-                                  ).animate().fadeIn(
-                                    delay: const Duration(milliseconds: 200),
-                                    duration: const Duration(milliseconds: 400),
-                                  ),
-                                ],
-                              ),
+                                      ],
+                                    ),
                             ),
                             // Notification Icon
-                            IconButton(
-                              onPressed: () =>
-                                  context.push(AppRoutes.notifications),
-                              style: IconButton.styleFrom(
-                                backgroundColor: AppColors.surface,
-                                padding: const EdgeInsets.all(
-                                  AppDimensions.paddingS,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(
-                                    AppDimensions.radiusS,
+                            if (isDashboardBootstrapping)
+                              const ShimmerLoading(
+                                width: 36,
+                                height: 36,
+                                borderRadius: AppDimensions.radiusS,
+                              )
+                            else
+                              IconButton(
+                                onPressed: () =>
+                                    context.push(AppRoutes.notifications),
+                                style: IconButton.styleFrom(
+                                  backgroundColor: AppColors.surface,
+                                  padding: const EdgeInsets.all(
+                                    AppDimensions.paddingS,
                                   ),
-                                ),
-                              ),
-                              icon: Stack(
-                                children: [
-                                  const Icon(
-                                    Iconsax.notification,
-                                    size: 20,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                  Positioned(
-                                    right: 0,
-                                    top: 0,
-                                    child: Container(
-                                      width: 6,
-                                      height: 6,
-                                      decoration: const BoxDecoration(
-                                        color: AppColors.error,
-                                        shape: BoxShape.circle,
-                                      ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(
+                                      AppDimensions.radiusS,
                                     ),
                                   ),
-                                ],
+                                ),
+                                icon: Stack(
+                                  children: [
+                                    const Icon(
+                                      Iconsax.notification,
+                                      size: 20,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                    Positioned(
+                                      right: 0,
+                                      top: 0,
+                                      child: Container(
+                                        width: 6,
+                                        height: 6,
+                                        decoration: const BoxDecoration(
+                                          color: AppColors.error,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ).animate().fadeIn(
+                                delay: const Duration(milliseconds: 300),
+                                duration: const Duration(milliseconds: 400),
                               ),
-                            ).animate().fadeIn(
-                              delay: const Duration(milliseconds: 300),
-                              duration: const Duration(milliseconds: 400),
-                            ),
                           ],
                         ),
                         const SizedBox(height: AppDimensions.paddingS),
@@ -851,24 +956,34 @@ class _StudentDashboardScreenState
                           ),
                           child: Column(
                             children: [
-                              _buildSectionHeader(
-                                title: 'Today Summary',
-                                icon: Iconsax.chart,
-                                color: AppColors.info,
-                              ),
-                              const SizedBox(height: AppDimensions.paddingS),
-                              _buildCurrentDateTimeInfo(),
-                              const SizedBox(height: AppDimensions.paddingS),
-                              _buildTodaySummaryGrid(),
+                              if (isDashboardBootstrapping) ...[
+                                _buildSectionHeaderSkeleton(),
+                                const SizedBox(height: AppDimensions.paddingS),
+                                _buildCurrentDateTimeSkeleton(),
+                                const SizedBox(height: AppDimensions.paddingS),
+                                _buildTodaySummaryGridSkeleton(),
+                              ] else ...[
+                                _buildSectionHeader(
+                                  title: 'Today Summary',
+                                  icon: Iconsax.chart,
+                                  color: AppColors.info,
+                                ),
+                                const SizedBox(height: AppDimensions.paddingS),
+                                _buildCurrentDateTimeInfo(),
+                                const SizedBox(height: AppDimensions.paddingS),
+                                _buildTodaySummaryGrid(),
+                              ],
                             ],
                           ),
                         ),
                         const SizedBox(height: AppDimensions.paddingS),
-                        _buildSectionHeader(
-                          title: 'Main Menu',
-                          icon: Iconsax.element_4,
-                          color: AppColors.primary,
-                        ),
+                        isDashboardBootstrapping
+                            ? _buildSectionHeaderSkeleton()
+                            : _buildSectionHeader(
+                                title: 'Main Menu',
+                                icon: Iconsax.element_4,
+                                color: AppColors.primary,
+                              ),
                         const SizedBox(height: AppDimensions.paddingS),
                         LayoutBuilder(
                           builder: (context, constraints) {
@@ -876,6 +991,14 @@ class _StudentDashboardScreenState
                             const itemHeight = 112.0;
                             final itemWidth =
                                 (constraints.maxWidth - (spacing * 2)) / 3;
+
+                            if (isDashboardBootstrapping) {
+                              return _buildMenuGridSkeleton(
+                                itemWidth: itemWidth,
+                                itemHeight: itemHeight,
+                                spacing: spacing,
+                              );
+                            }
 
                             final menuItems = <Widget>[
                               MenuCard(
@@ -1042,6 +1165,76 @@ class _StudentDashboardScreenState
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildSectionHeaderSkeleton() {
+    return const Row(
+      children: [
+        ShimmerLoading(width: 26, height: 26, borderRadius: 8),
+        SizedBox(width: AppDimensions.paddingS),
+        ShimmerLoading(width: 100, height: 12),
+      ],
+    );
+  }
+
+  Widget _buildCurrentDateTimeSkeleton() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimensions.paddingM,
+        vertical: AppDimensions.paddingM,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppDimensions.radiusM),
+        border: Border.all(color: AppColors.borderLight),
+      ),
+      child: const Column(
+        children: [
+          ShimmerLoading(width: 150, height: 28),
+          SizedBox(height: 8),
+          ShimmerLoading(width: 180, height: 12),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTodaySummaryGridSkeleton() {
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      crossAxisSpacing: AppDimensions.paddingS,
+      mainAxisSpacing: AppDimensions.paddingS,
+      childAspectRatio: 1.9,
+      children: List<Widget>.generate(
+        4,
+        (index) => _buildSummaryChipSkeleton(index: index),
+      ),
+    );
+  }
+
+  Widget _buildMenuGridSkeleton({
+    required double itemWidth,
+    required double itemHeight,
+    required double spacing,
+  }) {
+    return Wrap(
+      spacing: spacing,
+      runSpacing: spacing,
+      children: List<Widget>.generate(
+        6,
+        (_) => SizedBox(
+          width: itemWidth,
+          height: itemHeight,
+          child: const ShimmerLoading(
+            width: double.infinity,
+            height: double.infinity,
+            borderRadius: AppDimensions.radiusL,
+          ),
+        ),
+      ),
     );
   }
 }

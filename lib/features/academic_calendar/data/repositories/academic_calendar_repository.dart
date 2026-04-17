@@ -25,59 +25,42 @@ class AcademicCalendarRepository {
       }
       _apiClient.setAuthToken(trimmedToken);
 
-      final candidates = _buildRequestCandidates(
+      final requestPayload = _buildPrimaryPayload(
         id: id,
         loginType: loginType,
         nidStudent: nidStudent,
       );
 
-      AcademicCalendarException? lastAuthDenied;
-
-      for (final candidate in candidates) {
-        final response = await _apiClient.post(
-          ApiEndpoints.parentCalendar,
-          data: candidate,
-        );
-
-        final payload = response.data;
-        if (payload is! Map<String, dynamic>) {
-          throw const AcademicCalendarException('Invalid server response');
-        }
-
-        final status = payload['status']?.toString() ?? '0';
-        if (status == '1') {
-          final data = payload['data'];
-          if (data is! List) {
-            return <AcademicCalendarEntry>[];
-          }
-
-          return data
-              .whereType<Map>()
-              .map(
-                (e) => AcademicCalendarEntry.fromJson(
-                  Map<String, dynamic>.from(e),
-                ),
-              )
-              .toList();
-        }
-
-        final message = _extractErrorMessage(payload);
-        if (_isAuthenticationDenied(message)) {
-          lastAuthDenied = AcademicCalendarException(message);
-          continue;
-        }
-
-        throw AcademicCalendarException(message);
+      final primaryResult = await _fetchCalendar(payload: requestPayload);
+      if (primaryResult.isSuccess) {
+        return primaryResult.entries;
       }
 
-      if (lastAuthDenied != null) {
-        throw const AcademicCalendarException(
-          'Authentication denied for calendar request. '
-          'Please relogin and try again.',
-        );
+      final errorMessage = primaryResult.errorMessage;
+      if (!_isAuthenticationDenied(errorMessage)) {
+        throw AcademicCalendarException(errorMessage);
       }
 
-      throw const AcademicCalendarException('Failed to load academic calendar');
+      final fallbackPayload = _buildAuthFallbackPayload(
+        id: id,
+        loginType: loginType,
+        nidStudent: nidStudent,
+      );
+      if (fallbackPayload != null) {
+        final fallbackResult = await _fetchCalendar(payload: fallbackPayload);
+        if (fallbackResult.isSuccess) {
+          return fallbackResult.entries;
+        }
+
+        final fallbackMessage = fallbackResult.errorMessage;
+        if (!_isAuthenticationDenied(fallbackMessage)) {
+          throw AcademicCalendarException(fallbackMessage);
+        }
+      }
+
+      throw const AcademicCalendarException(
+        'Academic calendar is not accessible for this account.',
+      );
     } on DioException catch (e) {
       if (e.type == DioExceptionType.connectionTimeout ||
           e.type == DioExceptionType.receiveTimeout) {
@@ -109,7 +92,65 @@ class AcademicCalendarRepository {
     }
   }
 
-  List<Map<String, dynamic>> _buildRequestCandidates({
+  _CalendarFetchResult _parseCalendarPayload(dynamic payload) {
+    if (payload is! Map<String, dynamic>) {
+      return const _CalendarFetchResult.error('Invalid server response');
+    }
+
+    final status = payload['status']?.toString() ?? '0';
+    if (status != '1') {
+      return _CalendarFetchResult.error(_extractErrorMessage(payload));
+    }
+
+    final data = payload['data'];
+    if (data is! List) {
+      return const _CalendarFetchResult.success(<AcademicCalendarEntry>[]);
+    }
+
+    final entries = data
+        .whereType<Map>()
+        .map(
+          (e) => AcademicCalendarEntry.fromJson(Map<String, dynamic>.from(e)),
+        )
+        .toList();
+    return _CalendarFetchResult.success(entries);
+  }
+
+  Future<_CalendarFetchResult> _fetchCalendar({
+    required Map<String, dynamic> payload,
+  }) async {
+    final response = await _apiClient.post(
+      ApiEndpoints.parentCalendar,
+      data: payload,
+    );
+    return _parseCalendarPayload(response.data);
+  }
+
+  Map<String, dynamic> _buildPrimaryPayload({
+    required String id,
+    required String loginType,
+    required String nidStudent,
+  }) {
+    final trimmedId = id.trim();
+    final trimmedStudentId = nidStudent.trim();
+    final normalizedLoginType = _normalizeLoginType(loginType);
+
+    final resolvedId = trimmedId.isNotEmpty ? trimmedId : trimmedStudentId;
+
+    // Contract from backend: for calendar access, use login_type=student when
+    // nid_student exists, while id can remain user/parent identifier.
+    final resolvedLoginType = trimmedStudentId.isNotEmpty
+        ? 'student'
+        : (normalizedLoginType == 'student' ? 'student' : 'parent');
+
+    return <String, dynamic>{
+      'id': resolvedId,
+      'login_type': resolvedLoginType,
+      'nid_student': trimmedStudentId,
+    };
+  }
+
+  Map<String, dynamic>? _buildAuthFallbackPayload({
     required String id,
     required String loginType,
     required String nidStudent,
@@ -118,46 +159,38 @@ class AcademicCalendarRepository {
     final trimmedLoginType = _normalizeLoginType(loginType);
     final trimmedStudentId = nidStudent.trim();
 
-    final idCandidates = <String>{
-      if (trimmedId.isNotEmpty) trimmedId,
-      if (trimmedStudentId.isNotEmpty) trimmedStudentId,
-    };
-
-    final studentCandidates = <String>{
-      if (trimmedStudentId.isNotEmpty) trimmedStudentId,
-      if (trimmedId.isNotEmpty) trimmedId,
-    };
-
-    final loginTypeCandidates = <String>{
-      if (trimmedLoginType.isNotEmpty) trimmedLoginType,
-      'student',
-      'parent',
-    };
-
-    final candidates = <Map<String, dynamic>>[];
-    for (final requestLoginType in loginTypeCandidates) {
-      for (final requestId in idCandidates) {
-        for (final requestStudentId in studentCandidates) {
-          candidates.add(<String, dynamic>{
-            'id': requestId,
-            'login_type': requestLoginType,
-            'nid_student': requestStudentId,
-          });
-        }
-      }
+    if (trimmedStudentId.isEmpty) {
+      return null;
     }
 
-    if (candidates.isEmpty) {
-      return <Map<String, dynamic>>[
-        <String, dynamic>{
-          'id': trimmedId,
-          'login_type': trimmedLoginType,
+    if (trimmedLoginType == 'student') {
+      // Fallback 1: keep student mode, switch id to student id when current
+      // id is a non-student identifier rejected by backend.
+      if (trimmedId.isNotEmpty && trimmedId != trimmedStudentId) {
+        return <String, dynamic>{
+          'id': trimmedStudentId,
+          'login_type': 'student',
           'nid_student': trimmedStudentId,
-        },
-      ];
+        };
+      }
+
+      // Fallback 2: some environments still require parent login_type.
+      return <String, dynamic>{
+        'id': trimmedId.isNotEmpty ? trimmedId : trimmedStudentId,
+        'login_type': 'parent',
+        'nid_student': trimmedStudentId,
+      };
     }
 
-    return candidates;
+    if (trimmedId.isEmpty) {
+      return null;
+    }
+
+    return <String, dynamic>{
+      'id': trimmedId,
+      'login_type': 'student',
+      'nid_student': trimmedStudentId,
+    };
   }
 
   String _normalizeLoginType(String rawLoginType) {
@@ -205,6 +238,28 @@ class AcademicCalendarRepository {
 
     return 'Failed to load academic calendar';
   }
+}
+
+class _CalendarFetchResult {
+  final List<AcademicCalendarEntry> entries;
+  final String errorMessage;
+  final bool isSuccess;
+
+  const _CalendarFetchResult._({
+    required this.entries,
+    required this.errorMessage,
+    required this.isSuccess,
+  });
+
+  const _CalendarFetchResult.success(List<AcademicCalendarEntry> entries)
+    : this._(entries: entries, errorMessage: '', isSuccess: true);
+
+  const _CalendarFetchResult.error(String message)
+    : this._(
+        entries: const <AcademicCalendarEntry>[],
+        errorMessage: message,
+        isSuccess: false,
+      );
 }
 
 class AcademicCalendarException implements Exception {

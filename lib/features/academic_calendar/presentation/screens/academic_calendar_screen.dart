@@ -142,15 +142,24 @@ class _AcademicCalendarScreenState
     required String loginType,
     required String nidStudent,
   }) {
-    if (loginType == 'student' && nidStudent.isNotEmpty) {
-      return nidStudent;
+    final parsed = int.tryParse(rawId.trim());
+
+    if (loginType == 'student') {
+      // Backend expects user/parent id to be sent even when login_type is
+      // student (with nid_student as student identifier).
+      if ((parsed ?? 0) > 0) {
+        return parsed.toString();
+      }
+      if (nidStudent.isNotEmpty) {
+        return nidStudent;
+      }
+      return '';
     }
 
     if (loginType != 'parent') {
       return '';
     }
 
-    final parsed = int.tryParse(rawId.trim());
     if ((parsed ?? 0) > 0) {
       return parsed.toString();
     }
@@ -554,6 +563,17 @@ class _AcademicCalendarScreenState
     final text = error.toString().trim();
     if (text.isEmpty) {
       return 'Failed to load academic calendar.';
+    }
+    final normalized = text.toLowerCase();
+    final isAuthIssue =
+        normalized.contains('authentication denied') ||
+        normalized.contains('auth denied') ||
+        normalized.contains('unauthorized') ||
+        normalized.contains('forbidden') ||
+        normalized.contains('session expired') ||
+        normalized.contains('not accessible for this account');
+    if (isAuthIssue) {
+      return 'Academic calendar is not available for this account.';
     }
     return text;
   }

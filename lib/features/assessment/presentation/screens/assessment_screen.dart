@@ -995,6 +995,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
     final statusText = item.statusName.trim().isEmpty
         ? fallbackStatusName
         : item.statusName;
+    final statusColor = _colorForStatus(statusText);
 
     showDialog<void>(
       context: context,
@@ -1025,7 +1026,14 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
                     AppDimensions.paddingM,
                   ),
                   decoration: BoxDecoration(
-                    gradient: AppColors.primaryGradient,
+                    gradient: LinearGradient(
+                      colors: [
+                        statusColor,
+                        statusColor.withValues(alpha: 0.75),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(AppDimensions.radiusL),
                     ),
@@ -1155,7 +1163,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
                     child: ElevatedButton(
                       onPressed: () => Navigator.of(context).pop(),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
+                        backgroundColor: statusColor,
                         foregroundColor: AppColors.textOnPrimary,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(

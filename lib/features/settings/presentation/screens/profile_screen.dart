@@ -47,6 +47,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   int _avatarCacheSeed = DateTime.now().millisecondsSinceEpoch;
 
   bool _isLoading = false;
+  bool _isStudentProfileLoading = false;
+  Map<String, String> _studentProfile = <String, String>{};
 
   @override
   void initState() {
@@ -61,7 +63,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _nationalityController = TextEditingController(text: 'indonesia');
     _religionController = TextEditingController();
 
-    _prefillProfileFromApi();
+    if (user?.isStudent == true) {
+      _prefillStudentProfileFromApi();
+    } else {
+      _prefillProfileFromApi();
+    }
   }
 
   @override
@@ -209,6 +215,81 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     } finally {}
   }
 
+  List<int> _resolveStudentRegistrationIds(User user) {
+    final ids = <int>{
+      if ((user.studentId ?? 0) > 0) user.studentId!,
+      ...?user.childrenStudentId,
+      int.tryParse(user.id) ?? -1,
+    }.where((id) => id > 0).toList();
+
+    return ids;
+  }
+
+  String _displayValue(String? value) {
+    final text = value?.trim() ?? '';
+    return text.isEmpty ? '-' : text;
+  }
+
+  Future<void> _prefillStudentProfileFromApi() async {
+    final user = ref.read(currentUserProvider);
+    if (user == null || !user.isStudent) {
+      return;
+    }
+
+    final studentIds = _resolveStudentRegistrationIds(user);
+    if (studentIds.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _isStudentProfileLoading = true;
+    });
+
+    try {
+      final authRepository = ref.read(authRepositoryProvider);
+      final authToken = user.userToken?.trim() ?? '';
+      if (authToken.isNotEmpty) {
+        authRepository.setAuthToken(authToken);
+      }
+
+      Map<String, String>? profile;
+      for (final studentId in studentIds) {
+        try {
+          profile = await authRepository.getStudentDashboardProfile(
+            studentRegistrationId: studentId,
+          );
+          break;
+        } on AuthException {
+          continue;
+        }
+      }
+
+      if (!mounted || profile == null) {
+        return;
+      }
+
+      final photoUrl = profile['photoUrl'] ?? '';
+      if (photoUrl.isNotEmpty) {
+        final preloadedPhotoBytes = ref.read(currentUserPhotoBytesProvider);
+        if (preloadedPhotoBytes == null) {
+          ref.read(currentUserProvider.notifier).state = user.copyWith(
+            avatarUrl: _appendCacheBust(photoUrl),
+          );
+        }
+      }
+
+      setState(() {
+        _studentProfile = profile!;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isStudentProfileLoading = false;
+        });
+      }
+    }
+  }
+
   Future<void> _handleSave() async {
     final user = ref.read(currentUserProvider);
     if (!_formKey.currentState!.validate()) return;
@@ -341,6 +422,159 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
+  Widget _buildReadonlyField({required String label, required String value}) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: AppDimensions.paddingM),
+      padding: const EdgeInsets.all(AppDimensions.paddingM),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppDimensions.radiusM),
+        border: Border.all(color: AppColors.borderLight),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: AppDimensions.paddingXS),
+          Text(
+            value,
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 14,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStudentProfileBody(User user) {
+    final profile = _studentProfile;
+
+    if (_isStudentProfileLoading && profile.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return SafeArea(
+      child: RefreshIndicator(
+        onRefresh: _prefillStudentProfileFromApi,
+        color: AppColors.primary,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(AppDimensions.paddingL),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: ClipOval(child: _buildAvatarImage(user)),
+                ),
+              ).animate().fadeIn(duration: const Duration(milliseconds: 350)),
+              const SizedBox(height: AppDimensions.paddingXL),
+              _buildReadonlyField(
+                label: 'Nama',
+                value: _displayValue(profile['name'] ?? user.fullName),
+              ),
+              _buildReadonlyField(
+                label: 'Email Siswa',
+                value: _displayValue(
+                  profile['studentEmail'] ?? profile['email'],
+                ),
+              ),
+              _buildReadonlyField(
+                label: 'Kelas',
+                value: _displayValue(profile['className']),
+              ),
+              _buildReadonlyField(
+                label: 'Jenis Kelamin',
+                value: _displayValue(profile['gender']),
+              ),
+              _buildReadonlyField(
+                label: 'Alamat',
+                value: _displayValue(profile['address']),
+              ),
+              _buildReadonlyField(
+                label: 'NISN',
+                value: _displayValue(profile['nisn']),
+              ),
+              _buildReadonlyField(
+                label: 'Agama',
+                value: _displayValue(profile['religion']),
+              ),
+              const SizedBox(height: AppDimensions.paddingS),
+              const Text(
+                'Keluarga Siswa',
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: AppDimensions.paddingM),
+              _buildReadonlyField(
+                label: 'Nama Ayah',
+                value: _displayValue(profile['fatherName']),
+              ),
+              _buildReadonlyField(
+                label: 'Tanggal Lahir Ayah',
+                value: _displayValue(profile['fatherBirthDate']),
+              ),
+              _buildReadonlyField(
+                label: 'Alamat Ayah',
+                value: _displayValue(profile['fatherAddress']),
+              ),
+              _buildReadonlyField(
+                label: 'Nomor Telepon Ayah',
+                value: _displayValue(profile['fatherPhone']),
+              ),
+              _buildReadonlyField(
+                label: 'Email Ayah',
+                value: _displayValue(profile['fatherEmail']),
+              ),
+              _buildReadonlyField(
+                label: 'Nama Ibu',
+                value: _displayValue(profile['motherName']),
+              ),
+              _buildReadonlyField(
+                label: 'Tanggal Lahir Ibu',
+                value: _displayValue(profile['motherBirthDate']),
+              ),
+              _buildReadonlyField(
+                label: 'Alamat Ibu',
+                value: _displayValue(profile['motherAddress']),
+              ),
+              _buildReadonlyField(
+                label: 'Nomor Telepon Ibu',
+                value: _displayValue(profile['motherPhone']),
+              ),
+              _buildReadonlyField(
+                label: 'Email Ibu',
+                value: _displayValue(profile['motherEmail']),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
@@ -383,240 +617,250 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           onPressed: () => context.pop(),
         ),
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppDimensions.paddingL),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          Container(
-                            width: 100,
-                            height: 100,
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.1),
-                              shape: BoxShape.circle,
-                            ),
-                            child: ClipOval(child: _buildAvatarImage(user)),
-                          ),
-                          Positioned(
-                            right: -4,
-                            bottom: -4,
-                            child: Material(
-                              color: AppColors.primary,
-                              shape: const CircleBorder(),
-                              child: InkWell(
-                                customBorder: const CircleBorder(),
-                                onTap: _showPhotoSourceSheet,
-                                child: const Padding(
-                                  padding: EdgeInsets.all(8),
-                                  child: Icon(
-                                    Iconsax.camera,
-                                    size: 16,
-                                    color: AppColors.textOnPrimary,
+      body: user.isStudent
+          ? _buildStudentProfileBody(user)
+          : SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(AppDimensions.paddingL),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                Container(
+                                  width: 100,
+                                  height: 100,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withValues(
+                                      alpha: 0.1,
+                                    ),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: ClipOval(
+                                    child: _buildAvatarImage(user),
                                   ),
                                 ),
-                              ),
+                                Positioned(
+                                  right: -4,
+                                  bottom: -4,
+                                  child: Material(
+                                    color: AppColors.primary,
+                                    shape: const CircleBorder(),
+                                    child: InkWell(
+                                      customBorder: const CircleBorder(),
+                                      onTap: user.isStudent
+                                          ? null
+                                          : _showPhotoSourceSheet,
+                                      child: const Padding(
+                                        padding: EdgeInsets.all(8),
+                                        child: Icon(
+                                          Iconsax.camera,
+                                          size: 16,
+                                          color: AppColors.textOnPrimary,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
-                      ),
-                    )
-                    .animate()
-                    .fadeIn(duration: const Duration(milliseconds: 400))
-                    .scale(begin: const Offset(0.8, 0.8)),
-                const SizedBox(height: AppDimensions.paddingXL),
-                AppTextField(
-                      controller: _nameController,
-                      label: 'Parent/Guardian full name',
-                      hint: 'Enter parent/guardian full name',
-                      prefixIcon: Iconsax.user,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'This field is required';
-                        }
-                        return null;
-                      },
-                    )
-                    .animate()
-                    .fadeIn(
-                      delay: const Duration(milliseconds: 200),
-                      duration: const Duration(milliseconds: 400),
-                    )
-                    .slideX(begin: -0.1, end: 0),
-                const SizedBox(height: AppDimensions.paddingM),
-                AppTextField(
-                      controller: _emailController,
-                      label: 'Parent/Guardian email address',
-                      hint: 'Enter parent/guardian email address',
-                      keyboardType: TextInputType.emailAddress,
-                      prefixIcon: Iconsax.sms,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'This field is required';
-                        }
-                        if (!value.contains('@')) {
-                          return 'Please enter a valid email';
-                        }
-                        return null;
-                      },
-                    )
-                    .animate()
-                    .fadeIn(
-                      delay: const Duration(milliseconds: 300),
-                      duration: const Duration(milliseconds: 400),
-                    )
-                    .slideX(begin: -0.1, end: 0),
-                const SizedBox(height: AppDimensions.paddingM),
-                AppTextField(
-                      controller: _phoneController,
-                      label: 'Parent/Guardian phone number',
-                      hint: 'Enter parent/guardian phone number',
-                      keyboardType: TextInputType.phone,
-                      prefixIcon: Iconsax.call,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'This field is required';
-                        }
-                        return null;
-                      },
-                    )
-                    .animate()
-                    .fadeIn(
-                      delay: const Duration(milliseconds: 400),
-                      duration: const Duration(milliseconds: 400),
-                    )
-                    .slideX(begin: -0.1, end: 0),
-                const SizedBox(height: AppDimensions.paddingM),
-                AppTextField(
-                      controller: _birthDateController,
-                      label: 'Birth Date',
-                      hint: 'Select birth date',
-                      readOnly: true,
-                      prefixIcon: Iconsax.calendar,
-                      onTap: _selectBirthDate,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'This field is required';
-                        }
-                        return null;
-                      },
-                    )
-                    .animate()
-                    .fadeIn(
-                      delay: const Duration(milliseconds: 450),
-                      duration: const Duration(milliseconds: 400),
-                    )
-                    .slideX(begin: -0.1, end: 0),
-                const SizedBox(height: AppDimensions.paddingM),
-                AppTextField(
-                      controller: _placeOfBirthController,
-                      label: 'Place of Birth',
-                      hint: 'Enter place of birth',
-                      prefixIcon: Iconsax.location,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'This field is required';
-                        }
-                        return null;
-                      },
-                    )
-                    .animate()
-                    .fadeIn(
-                      delay: const Duration(milliseconds: 500),
-                      duration: const Duration(milliseconds: 400),
-                    )
-                    .slideX(begin: -0.1, end: 0),
-                const SizedBox(height: AppDimensions.paddingM),
-                AppTextField(
-                      controller: _addressController,
-                      label: 'Address',
-                      hint: 'Enter student address',
-                      prefixIcon: Iconsax.location,
-                      maxLines: 2,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'This field is required';
-                        }
-                        return null;
-                      },
-                    )
-                    .animate()
-                    .fadeIn(
-                      delay: const Duration(milliseconds: 550),
-                      duration: const Duration(milliseconds: 400),
-                    )
-                    .slideX(begin: -0.1, end: 0),
-                const SizedBox(height: AppDimensions.paddingM),
-                AppTextField(
-                      controller: _nationalityController,
-                      label: 'Nationality',
-                      hint: 'Enter nationality',
-                      prefixIcon: Iconsax.global,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'This field is required';
-                        }
-                        return null;
-                      },
-                    )
-                    .animate()
-                    .fadeIn(
-                      delay: const Duration(milliseconds: 600),
-                      duration: const Duration(milliseconds: 400),
-                    )
-                    .slideX(begin: -0.1, end: 0),
-                const SizedBox(height: AppDimensions.paddingM),
-                AppTextField(
-                      controller: _religionController,
-                      label: 'Religion',
-                      hint: 'Enter religion',
-                      prefixIcon: Iconsax.book,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'This field is required';
-                        }
-                        return null;
-                      },
-                    )
-                    .animate()
-                    .fadeIn(
-                      delay: const Duration(milliseconds: 650),
-                      duration: const Duration(milliseconds: 400),
-                    )
-                    .slideX(begin: -0.1, end: 0),
-                const SizedBox(height: AppDimensions.paddingXXL),
-              ],
-            ),
-          ),
-        ),
-      ),
-      bottomNavigationBar: Container(
-        color: AppColors.surface,
-        padding: const EdgeInsets.fromLTRB(
-          AppDimensions.paddingL,
-          AppDimensions.paddingM,
-          AppDimensions.paddingL,
-          AppDimensions.paddingL,
-        ),
-        child: SafeArea(
-          top: false,
-          child:
-              PrimaryButton(
-                text: 'Save',
-                isLoading: _isLoading,
-                onPressed: _handleSave,
-              ).animate().fadeIn(
-                delay: const Duration(milliseconds: 700),
-                duration: const Duration(milliseconds: 400),
+                          )
+                          .animate()
+                          .fadeIn(duration: const Duration(milliseconds: 400))
+                          .scale(begin: const Offset(0.8, 0.8)),
+                      const SizedBox(height: AppDimensions.paddingXL),
+                      AppTextField(
+                            controller: _nameController,
+                            label: 'Parent/Guardian full name',
+                            hint: 'Enter parent/guardian full name',
+                            prefixIcon: Iconsax.user,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'This field is required';
+                              }
+                              return null;
+                            },
+                          )
+                          .animate()
+                          .fadeIn(
+                            delay: const Duration(milliseconds: 200),
+                            duration: const Duration(milliseconds: 400),
+                          )
+                          .slideX(begin: -0.1, end: 0),
+                      const SizedBox(height: AppDimensions.paddingM),
+                      AppTextField(
+                            controller: _emailController,
+                            label: 'Parent/Guardian email address',
+                            hint: 'Enter parent/guardian email address',
+                            keyboardType: TextInputType.emailAddress,
+                            prefixIcon: Iconsax.sms,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'This field is required';
+                              }
+                              if (!value.contains('@')) {
+                                return 'Please enter a valid email';
+                              }
+                              return null;
+                            },
+                          )
+                          .animate()
+                          .fadeIn(
+                            delay: const Duration(milliseconds: 300),
+                            duration: const Duration(milliseconds: 400),
+                          )
+                          .slideX(begin: -0.1, end: 0),
+                      const SizedBox(height: AppDimensions.paddingM),
+                      AppTextField(
+                            controller: _phoneController,
+                            label: 'Parent/Guardian phone number',
+                            hint: 'Enter parent/guardian phone number',
+                            keyboardType: TextInputType.phone,
+                            prefixIcon: Iconsax.call,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'This field is required';
+                              }
+                              return null;
+                            },
+                          )
+                          .animate()
+                          .fadeIn(
+                            delay: const Duration(milliseconds: 400),
+                            duration: const Duration(milliseconds: 400),
+                          )
+                          .slideX(begin: -0.1, end: 0),
+                      const SizedBox(height: AppDimensions.paddingM),
+                      AppTextField(
+                            controller: _birthDateController,
+                            label: 'Birth Date',
+                            hint: 'Select birth date',
+                            readOnly: true,
+                            prefixIcon: Iconsax.calendar,
+                            onTap: _selectBirthDate,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'This field is required';
+                              }
+                              return null;
+                            },
+                          )
+                          .animate()
+                          .fadeIn(
+                            delay: const Duration(milliseconds: 450),
+                            duration: const Duration(milliseconds: 400),
+                          )
+                          .slideX(begin: -0.1, end: 0),
+                      const SizedBox(height: AppDimensions.paddingM),
+                      AppTextField(
+                            controller: _placeOfBirthController,
+                            label: 'Place of Birth',
+                            hint: 'Enter place of birth',
+                            prefixIcon: Iconsax.location,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'This field is required';
+                              }
+                              return null;
+                            },
+                          )
+                          .animate()
+                          .fadeIn(
+                            delay: const Duration(milliseconds: 500),
+                            duration: const Duration(milliseconds: 400),
+                          )
+                          .slideX(begin: -0.1, end: 0),
+                      const SizedBox(height: AppDimensions.paddingM),
+                      AppTextField(
+                            controller: _addressController,
+                            label: 'Address',
+                            hint: 'Enter student address',
+                            prefixIcon: Iconsax.location,
+                            maxLines: 2,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'This field is required';
+                              }
+                              return null;
+                            },
+                          )
+                          .animate()
+                          .fadeIn(
+                            delay: const Duration(milliseconds: 550),
+                            duration: const Duration(milliseconds: 400),
+                          )
+                          .slideX(begin: -0.1, end: 0),
+                      const SizedBox(height: AppDimensions.paddingM),
+                      AppTextField(
+                            controller: _nationalityController,
+                            label: 'Nationality',
+                            hint: 'Enter nationality',
+                            prefixIcon: Iconsax.global,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'This field is required';
+                              }
+                              return null;
+                            },
+                          )
+                          .animate()
+                          .fadeIn(
+                            delay: const Duration(milliseconds: 600),
+                            duration: const Duration(milliseconds: 400),
+                          )
+                          .slideX(begin: -0.1, end: 0),
+                      const SizedBox(height: AppDimensions.paddingM),
+                      AppTextField(
+                            controller: _religionController,
+                            label: 'Religion',
+                            hint: 'Enter religion',
+                            prefixIcon: Iconsax.book,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'This field is required';
+                              }
+                              return null;
+                            },
+                          )
+                          .animate()
+                          .fadeIn(
+                            delay: const Duration(milliseconds: 650),
+                            duration: const Duration(milliseconds: 400),
+                          )
+                          .slideX(begin: -0.1, end: 0),
+                      const SizedBox(height: AppDimensions.paddingXXL),
+                    ],
+                  ),
+                ),
               ),
-        ),
-      ),
+            ),
+      bottomNavigationBar: user.isStudent
+          ? null
+          : Container(
+              color: AppColors.surface,
+              padding: const EdgeInsets.fromLTRB(
+                AppDimensions.paddingL,
+                AppDimensions.paddingM,
+                AppDimensions.paddingL,
+                AppDimensions.paddingL,
+              ),
+              child: SafeArea(
+                top: false,
+                child:
+                    PrimaryButton(
+                      text: 'Save',
+                      isLoading: _isLoading,
+                      onPressed: _handleSave,
+                    ).animate().fadeIn(
+                      delay: const Duration(milliseconds: 700),
+                      duration: const Duration(milliseconds: 400),
+                    ),
+              ),
+            ),
     );
   }
 }

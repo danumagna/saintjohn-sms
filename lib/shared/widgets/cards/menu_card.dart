@@ -13,6 +13,7 @@ class MenuCard extends StatelessWidget {
   final Color? backgroundColor;
   final String? subtitle;
   final int index;
+  final bool compact;
 
   const MenuCard({
     super.key,
@@ -23,51 +24,82 @@ class MenuCard extends StatelessWidget {
     this.backgroundColor,
     this.subtitle,
     this.index = 0,
+    this.compact = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final cardRadius = compact ? AppDimensions.radiusM : AppDimensions.radiusL;
+    final cardPadding = compact
+        ? const EdgeInsets.all(AppDimensions.paddingS)
+        : const EdgeInsets.all(AppDimensions.paddingM);
+    final iconPadding = compact
+        ? const EdgeInsets.all(AppDimensions.paddingS)
+        : const EdgeInsets.all(AppDimensions.paddingM);
+    final iconSize = compact ? AppDimensions.iconM : AppDimensions.iconL;
+    final iconSlotSize = compact ? 40.0 : 64.0;
+    final titleFontSize = compact ? 12.0 : 14.0;
+    final titleWeight = compact ? FontWeight.w500 : FontWeight.w600;
+    final titleSlotHeight = compact ? 32.0 : 54.0;
+
     return Card(
           elevation: AppDimensions.elevationS,
           shadowColor: AppColors.shadow,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppDimensions.radiusL),
+            borderRadius: BorderRadius.circular(cardRadius),
           ),
           child: InkWell(
             onTap: onTap,
-            borderRadius: BorderRadius.circular(AppDimensions.radiusL),
+            borderRadius: BorderRadius.circular(cardRadius),
             child: Container(
-              padding: const EdgeInsets.all(AppDimensions.paddingM),
+              padding: cardPadding,
               decoration: BoxDecoration(
                 color: backgroundColor ?? AppColors.cardBackground,
-                borderRadius: BorderRadius.circular(AppDimensions.radiusL),
+                borderRadius: BorderRadius.circular(cardRadius),
               ),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(AppDimensions.paddingM),
-                    decoration: BoxDecoration(
-                      color: (iconColor ?? AppColors.primary).withValues(
-                        alpha: 0.1,
+                  SizedBox(
+                    width: iconSlotSize,
+                    height: iconSlotSize,
+                    child: Center(
+                      child: Container(
+                        padding: iconPadding,
+                        decoration: BoxDecoration(
+                          color: (iconColor ?? AppColors.primary).withValues(
+                            alpha: 0.1,
+                          ),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          icon,
+                          size: iconSize,
+                          color: iconColor ?? AppColors.primary,
+                        ),
                       ),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      icon,
-                      size: AppDimensions.iconL,
-                      color: iconColor ?? AppColors.primary,
                     ),
                   ),
-                  const SizedBox(height: AppDimensions.paddingM),
-                  Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
+                  SizedBox(
+                    height: compact
+                        ? AppDimensions.paddingS
+                        : AppDimensions.paddingM,
+                  ),
+                  SizedBox(
+                    height: titleSlotHeight,
+                    child: Center(
+                      child: Text(
+                        title,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: titleFontSize,
+                          fontWeight: titleWeight,
+                          color: AppColors.textPrimary,
+                        ),
+                        maxLines: compact ? 2 : 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ),
                   if (subtitle != null) ...[

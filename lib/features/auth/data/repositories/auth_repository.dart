@@ -508,21 +508,23 @@ class AuthRepository {
           'vstudentProfileFullName',
           'full_name',
         ]),
+        'studentEmail': _readString(source, const [
+          'vstudentProfileStudentEmail',
+          'vstudentDashboardProfileEmail',
+          'student_email',
+          'email',
+        ]),
         'email': _readString(source, const [
           'vstudentDashboardProfileEmail',
           'email',
         ]),
-        'className': _readStringLoose(
-          source,
-          const [
-            'class_name',
-            'vstudentDashboardProfileClassName',
-            'className',
-            'school_class_name',
-            'grade_name',
-          ],
-          const ['classname', 'class', 'schoolclass', 'grade', 'tingkat'],
-        ),
+        'className': _readString(source, const [
+          'vstudentDashboardProfileClassName',
+          'class_name',
+          'className',
+          'school_class_name',
+          'grade_name',
+        ]),
         'schoolName': _readStringLoose(
           source,
           const [
@@ -561,9 +563,65 @@ class AuthRepository {
           'classId',
         ]),
         'address': _readString(source, const [
+          'vstudentProfileStudentCurrentAddress',
           'vstudentDashboardProfileAddress',
           'vstudentDashboardProfileSchoolAddress',
           'address',
+        ]),
+        'gender': _readString(source, const [
+          'vstudentDashboardProfileGender',
+          'vstudentProfileGender',
+          'gender',
+        ]),
+        'nisn': _readString(source, const [
+          'vstudentDashboardProfileNISN',
+          'vstudentProfileNISN',
+          'nisn',
+        ]),
+        'religion': _readString(source, const [
+          'vstudentDashboardProfileReligion',
+          'vstudentProfileReligion',
+          'religion',
+        ]),
+        'fatherName': _readString(source, const [
+          'vstudentDashboardFatherName',
+          'vstudentProfileFatherName',
+        ]),
+        'fatherBirthDate': _readString(source, const [
+          'vstudentDashboardFatherBirthDate',
+          'dstudentProfileFatherDateOfBirth',
+        ]),
+        'fatherAddress': _readString(source, const [
+          'vstudentDashboardFatherAddress',
+          'vstudentProfileFatherAddress',
+        ]),
+        'fatherPhone': _readString(source, const [
+          'vstudentDashboardFatherPhone',
+          'vstudentProfileFatherPhone',
+        ]),
+        'fatherEmail': _readString(source, const [
+          'vstudentDashboardFatherEmail',
+          'vstudentProfileFatherEmail',
+        ]),
+        'motherName': _readString(source, const [
+          'vstudentDashboardMotherName',
+          'vstudentProfileMotherName',
+        ]),
+        'motherBirthDate': _readString(source, const [
+          'vstudentDashboardMotherBirthDate',
+          'dstudentProfileMotherDateOfBirth',
+        ]),
+        'motherAddress': _readString(source, const [
+          'vstudentDashboardMotherAddress',
+          'vstudentProfileMotherAddress',
+        ]),
+        'motherPhone': _readString(source, const [
+          'vstudentDashboardMotherPhone',
+          'vstudentProfileMotherPhone',
+        ]),
+        'motherEmail': _readString(source, const [
+          'vstudentDashboardMotherEmail',
+          'vstudentProfileMotherEmail',
         ]),
       };
     } on DioException catch (e) {

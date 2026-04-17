@@ -38,21 +38,56 @@ final parentCalendarProvider =
     FutureProvider.family<List<AcademicCalendarEntry>, AcademicCalendarRequest>(
       (ref, request) async {
         final currentUser = ref.read(currentUserProvider);
-        var authToken = currentUser?.userToken?.trim() ?? '';
-        if (authToken.isEmpty) {
-          final storedUser = await readStoredCurrentUser();
-          authToken = storedUser?.userToken?.trim() ?? '';
-          if (storedUser != null && ref.read(currentUserProvider) == null) {
-            ref.read(currentUserProvider.notifier).state = storedUser;
-          }
+        final storedUser = await readStoredCurrentUser();
+        final currentToken = currentUser?.userToken?.trim() ?? '';
+        final storedToken = storedUser?.userToken?.trim() ?? '';
+
+        if (storedUser != null && ref.read(currentUserProvider) == null) {
+          ref.read(currentUserProvider.notifier).state = storedUser;
         }
 
         final repository = ref.read(academicCalendarRepositoryProvider);
-        return repository.getParentCalendar(
-          id: request.id,
-          loginType: request.loginType,
-          nidStudent: request.nidStudent,
-          authToken: authToken,
+        final tokenCandidates = <String>{
+          if (currentToken.isNotEmpty) currentToken,
+          if (storedToken.isNotEmpty) storedToken,
+        }.toList();
+
+        if (tokenCandidates.isEmpty) {
+          throw const AcademicCalendarException(
+            'Session expired. Please login again.',
+          );
+        }
+
+        AcademicCalendarException? lastAuthDenied;
+        for (final token in tokenCandidates) {
+          try {
+            return await repository.getParentCalendar(
+              id: request.id,
+              loginType: request.loginType,
+              nidStudent: request.nidStudent,
+              authToken: token,
+            );
+          } on AcademicCalendarException catch (e) {
+            final text = e.message.toLowerCase();
+            final isAuthIssue =
+                text.contains('auth') ||
+                text.contains('unauthor') ||
+                text.contains('session') ||
+                text.contains('access');
+            if (isAuthIssue) {
+              lastAuthDenied = e;
+              continue;
+            }
+            rethrow;
+          }
+        }
+
+        if (lastAuthDenied != null) {
+          throw lastAuthDenied;
+        }
+
+        throw const AcademicCalendarException(
+          'Failed to load academic calendar.',
         );
       },
     );

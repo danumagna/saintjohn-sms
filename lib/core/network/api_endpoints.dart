@@ -3,7 +3,7 @@ class ApiEndpoints {
   ApiEndpoints._();
 
   // Base URL
-  static const String baseUrl = 'https://dev-api.magnaedu.id/msisms-api';
+  static const String baseUrl = 'https://beta-api.magnaedu.id/msisms-api';
 
   // Auth endpoints
   static const String login = '/msisms006/user/login';

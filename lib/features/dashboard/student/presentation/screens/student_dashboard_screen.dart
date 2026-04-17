@@ -13,9 +13,9 @@ import '../../../../../core/network/api_client.dart';
 import '../../../../../core/network/api_endpoints.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/constants/app_dimensions.dart';
-import '../../../../../features/academic_calendar/data/repositories/academic_calendar_repository.dart';
 import '../../../../../features/reports/data/models/attendance_chart_data.dart';
 import '../../../../../features/reports/data/repositories/attendance_report_repository.dart';
+import '../../../../../features/reports/data/repositories/student_progress_repository.dart';
 import '../../../../../features/schedule/data/repositories/schedule_repository.dart';
 import '../../../../../routing/app_router.dart';
 import '../../../../../shared/utils/current_user_session_storage.dart';
@@ -28,13 +28,13 @@ import '../../../../auth/domain/entities/user.dart';
 
 class _TodaySummaryData {
   final String classesToday;
-  final String academicCalendar;
+  final String averageScore;
   final String attendanceRate;
   final String examsToday;
 
   const _TodaySummaryData({
     required this.classesToday,
-    required this.academicCalendar,
+    required this.averageScore,
     required this.attendanceRate,
     required this.examsToday,
   });
@@ -42,7 +42,7 @@ class _TodaySummaryData {
   factory _TodaySummaryData.empty() {
     return const _TodaySummaryData(
       classesToday: '0',
-      academicCalendar: '0',
+      averageScore: '0.0',
       attendanceRate: '0%',
       examsToday: '0',
     );
@@ -91,10 +91,10 @@ class _StudentDashboardScreenState
   Timer? _clockTimer;
   final ApiClient _apiClient = ApiClient();
   final ScheduleRepository _scheduleRepository = ScheduleRepository();
-  final AcademicCalendarRepository _calendarRepository =
-      AcademicCalendarRepository();
   final AttendanceReportRepository _attendanceRepository =
       AttendanceReportRepository();
+  final StudentProgressRepository _studentProgressRepository =
+      StudentProgressRepository();
   late Future<_TodaySummaryData> _todaySummaryFuture;
 
   @override
@@ -248,7 +248,7 @@ class _StudentDashboardScreenState
     return _resolveStudentId(user);
   }
 
-  String _normalizeCalendarLoginType(String rawRole) {
+  String _normalizeProgressLoginType(String rawRole) {
     final role = rawRole.trim().toLowerCase();
     if (role.contains('parent')) {
       return 'parent';
@@ -257,23 +257,6 @@ class _StudentDashboardScreenState
       return 'student';
     }
     return role;
-  }
-
-  String _resolveCalendarRequestId({
-    required User user,
-    required String loginType,
-    required int studentId,
-  }) {
-    if (loginType == 'student') {
-      return studentId.toString();
-    }
-
-    final parsed = int.tryParse(user.id);
-    if ((parsed ?? 0) > 0) {
-      return parsed.toString();
-    }
-
-    return studentId.toString();
   }
 
   String _buildClassAndSchoolLabel(User user) {
@@ -341,13 +324,6 @@ class _StudentDashboardScreenState
     return localDate.year == localOther.year &&
         localDate.month == localOther.month &&
         localDate.day == localOther.day;
-  }
-
-  bool _isExamType(String assessmentTypeName) {
-    final normalized = assessmentTypeName.toLowerCase();
-    return normalized.contains('exam') ||
-        normalized.contains('ujian') ||
-        normalized.contains('test');
   }
 
   Future<List<_AssessmentMonitoringSummaryItem>> _loadAssessmentItems({
@@ -423,14 +399,10 @@ class _StudentDashboardScreenState
       final allAssessmentItems = lists.expand((items) => items).toList();
 
       examsToday = allAssessmentItems.where((item) {
-        if (!_isExamType(item.assessmentTypeName)) {
-          return false;
-        }
-        final dueDate = item.deadline ?? item.assignDate;
-        if (dueDate == null) {
-          return false;
-        }
-        return _isSameDate(dueDate, today);
+        final assignDate = item.assignDate;
+        final deadlineDate = item.deadline;
+        return (assignDate != null && _isSameDate(assignDate, today)) ||
+            (deadlineDate != null && _isSameDate(deadlineDate, today));
       }).length;
     } catch (_) {
       // Keep dashboard usable if assessment API is temporarily unavailable.
@@ -452,25 +424,28 @@ class _StudentDashboardScreenState
       // Keep default value.
     }
 
-    int calendarCount = 0;
+    double averageScore = 0;
     try {
-      final calendarLoginType = _normalizeCalendarLoginType(user.role);
-      final calendarRequestId = _resolveCalendarRequestId(
-        user: user,
-        loginType: calendarLoginType,
-        studentId: resolvedStudentId,
-      );
+      final normalizedLoginType = _normalizeProgressLoginType(user.role);
+      final parsedUserId = int.tryParse(user.id);
+      final requestId = (parsedUserId ?? 0) > 0
+          ? parsedUserId.toString()
+          : resolvedStudentId.toString();
+      final loginType = resolvedStudentId > 0 ? 'student' : normalizedLoginType;
 
-      final entries = await _calendarRepository.getParentCalendar(
-        id: calendarRequestId,
-        loginType: calendarLoginType,
-        nidStudent: resolvedStudentId.toString(),
+      final progressItems = await _studentProgressRepository.getGraphScores(
+        id: requestId,
+        loginType: loginType,
+        student: resolvedStudentId.toString(),
         authToken: authToken,
       );
-      final startOfToday = DateTime(today.year, today.month, today.day);
-      calendarCount = entries
-          .where((entry) => !entry.dateEnd.isBefore(startOfToday))
-          .length;
+
+      if (progressItems.isNotEmpty) {
+        final totalScore = progressItems
+            .map((item) => item.finalGrade)
+            .reduce((a, b) => a + b);
+        averageScore = totalScore / progressItems.length;
+      }
     } catch (_) {
       // Keep default value.
     }
@@ -491,7 +466,7 @@ class _StudentDashboardScreenState
 
     return _TodaySummaryData(
       classesToday: '$classesToday',
-      academicCalendar: '$calendarCount',
+      averageScore: averageScore.toStringAsFixed(1),
       attendanceRate: attendanceRate,
       examsToday: '$examsToday',
     );
@@ -536,28 +511,28 @@ class _StudentDashboardScreenState
               onTap: () => context.push(AppRoutes.attendanceReport),
             ),
             _buildSummaryChip(
-              icon: Iconsax.note,
-              iconColor: AppColors.warning,
-              value: summary.examsToday,
-              label: 'Exams Today',
+              icon: Iconsax.chart_success,
+              iconColor: AppColors.info,
+              value: summary.averageScore,
+              label: 'Average Score',
               index: 1,
-              onTap: () => context.push(AppRoutes.examSchedule),
-            ),
-            _buildSummaryChip(
-              icon: Iconsax.calendar_2,
-              iconColor: AppColors.warning,
-              value: summary.academicCalendar,
-              label: 'Academic Calendar',
-              index: 2,
-              onTap: () => context.push(AppRoutes.academicCalendar),
+              onTap: () => context.push(AppRoutes.studentProgress),
             ),
             _buildSummaryChip(
               icon: Iconsax.calendar,
               iconColor: AppColors.schedule,
               value: summary.classesToday,
               label: 'Classes Today',
-              index: 3,
+              index: 2,
               onTap: () => context.push(AppRoutes.schedule),
+            ),
+            _buildSummaryChip(
+              icon: Iconsax.note,
+              iconColor: AppColors.warning,
+              value: summary.examsToday,
+              label: 'Exams Today',
+              index: 3,
+              onTap: () => context.push(AppRoutes.examSchedule),
             ),
           ],
         );
@@ -836,53 +811,73 @@ class _StudentDashboardScreenState
                           color: AppColors.primary,
                         ),
                         const SizedBox(height: AppDimensions.paddingS),
-                        GridView.count(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          crossAxisCount: 2,
-                          crossAxisSpacing: AppDimensions.paddingM,
-                          mainAxisSpacing: AppDimensions.paddingM,
-                          childAspectRatio: 1.0,
-                          children: [
-                            MenuCard(
-                              title: 'Assessment',
-                              icon: Iconsax.chart_2,
-                              iconColor: AppColors.secondary,
-                              index: 0,
-                              onTap: () => context.push(AppRoutes.assessment),
-                            ),
-                            MenuCard(
-                              title: 'Class Schedule',
-                              icon: Iconsax.calendar,
-                              iconColor: AppColors.schedule,
-                              index: 1,
-                              onTap: () => context.push(AppRoutes.schedule),
-                            ),
-                            MenuCard(
-                              title: 'Academic Calendar',
-                              icon: Iconsax.calendar_2,
-                              iconColor: AppColors.warning,
-                              index: 2,
-                              onTap: () =>
-                                  context.push(AppRoutes.academicCalendar),
-                            ),
-                            MenuCard(
-                              title: 'Student Attendance',
-                              icon: Iconsax.user_tick,
-                              iconColor: AppColors.success,
-                              index: 3,
-                              onTap: () =>
-                                  context.push(AppRoutes.attendanceReport),
-                            ),
-                            MenuCard(
-                              title: 'Student Progress',
-                              icon: Iconsax.chart_success,
-                              iconColor: AppColors.info,
-                              index: 4,
-                              onTap: () =>
-                                  context.push(AppRoutes.studentProgress),
-                            ),
-                          ],
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            const spacing = AppDimensions.paddingS;
+                            const itemHeight = 112.0;
+                            final itemWidth =
+                                (constraints.maxWidth - (spacing * 2)) / 3;
+
+                            final menuItems = <Widget>[
+                              MenuCard(
+                                title: 'Academic Calendar',
+                                icon: Iconsax.calendar_2,
+                                iconColor: AppColors.academicCalendar,
+                                index: 0,
+                                compact: true,
+                                onTap: () =>
+                                    context.push(AppRoutes.academicCalendar),
+                              ),
+                              MenuCard(
+                                title: 'Assessment',
+                                icon: Iconsax.chart_2,
+                                iconColor: AppColors.warning,
+                                index: 1,
+                                compact: true,
+                                onTap: () => context.push(AppRoutes.assessment),
+                              ),
+                              MenuCard(
+                                title: 'Class Schedule',
+                                icon: Iconsax.calendar,
+                                iconColor: AppColors.schedule,
+                                index: 2,
+                                compact: true,
+                                onTap: () => context.push(AppRoutes.schedule),
+                              ),
+                              MenuCard(
+                                title: 'Student Attendance',
+                                icon: Iconsax.user_tick,
+                                iconColor: AppColors.success,
+                                index: 3,
+                                compact: true,
+                                onTap: () =>
+                                    context.push(AppRoutes.attendanceReport),
+                              ),
+                              MenuCard(
+                                title: 'Student Progress',
+                                icon: Iconsax.chart_success,
+                                iconColor: AppColors.info,
+                                index: 4,
+                                compact: true,
+                                onTap: () =>
+                                    context.push(AppRoutes.studentProgress),
+                              ),
+                            ];
+
+                            return Wrap(
+                              spacing: spacing,
+                              runSpacing: spacing,
+                              children: menuItems
+                                  .map(
+                                    (item) => SizedBox(
+                                      width: itemWidth,
+                                      height: itemHeight,
+                                      child: item,
+                                    ),
+                                  )
+                                  .toList(),
+                            );
+                          },
                         ),
                       ],
                     ),

@@ -655,37 +655,37 @@ class AuthRepository {
     required String parentId,
     int imageIndex = 1,
     int? cacheBust,
+    String? filePath,
   }) async {
     try {
-      final response = await _apiClient.get(
-        '${ApiEndpoints.parentProfileFile}/$parentId/$imageIndex',
-        queryParameters: cacheBust == null
-            ? null
-            : <String, dynamic>{'t': cacheBust},
-      );
-
-      final payload = response.data;
-      if (payload is! Map<String, dynamic>) {
-        return null;
+      final candidates = _buildPhotoFilePathCandidates(filePath);
+      if (candidates.isEmpty) {
+        final response = await _apiClient.get(
+          '${ApiEndpoints.parentProfileFile}/$parentId/$imageIndex',
+          queryParameters: _buildPhotoQueryParams(
+            cacheBust: cacheBust,
+            filePath: null,
+          ),
+        );
+        return _decodePhotoBytes(response.data);
       }
 
-      final status = payload['status']?.toString();
-      if (status != '1') {
-        return null;
+      for (final candidate in candidates) {
+        final response = await _apiClient.get(
+          '${ApiEndpoints.parentProfileFile}/$parentId/$imageIndex',
+          queryParameters: _buildPhotoQueryParams(
+            cacheBust: cacheBust,
+            filePath: candidate,
+          ),
+        );
+
+        final bytes = _decodePhotoBytes(response.data);
+        if (bytes != null) {
+          return bytes;
+        }
       }
 
-      final message = payload['message'];
-      if (message is! Map<String, dynamic>) {
-        return null;
-      }
-
-      final encoded = message['file']?.toString().trim() ?? '';
-      if (encoded.isEmpty) {
-        return null;
-      }
-
-      final normalized = _normalizeBase64Payload(encoded);
-      return base64Decode(normalized);
+      return null;
     } on DioException catch (e) {
       if (e.response?.statusCode == 404) {
         return null;
@@ -701,6 +701,80 @@ class AuthRepository {
       }
       return null;
     }
+  }
+
+  Map<String, dynamic>? _buildPhotoQueryParams({
+    required int? cacheBust,
+    required String? filePath,
+  }) {
+    final params = <String, dynamic>{};
+    if (cacheBust != null) {
+      params['t'] = cacheBust;
+    }
+
+    final value = filePath?.trim() ?? '';
+    if (value.isNotEmpty) {
+      params['filePath'] = value;
+      params['filepath'] = value;
+    }
+
+    return params.isEmpty ? null : params;
+  }
+
+  List<String> _buildPhotoFilePathCandidates(String? filePath) {
+    final raw = filePath?.trim() ?? '';
+    if (raw.isEmpty) {
+      return const <String>[];
+    }
+
+    final normalized = raw.replaceAll('\\', '/');
+    final values = <String>{};
+
+    void addCandidate(String value) {
+      final trimmed = value.trim();
+      if (trimmed.isEmpty) {
+        return;
+      }
+      values.add(trimmed);
+      values.add(trimmed.startsWith('/') ? trimmed.substring(1) : trimmed);
+      if (trimmed.contains('/msisms-api/')) {
+        values.add(trimmed.split('/msisms-api/').last);
+      }
+    }
+
+    addCandidate(normalized);
+
+    final uri = Uri.tryParse(normalized);
+    if (uri != null && (uri.hasScheme || normalized.startsWith('//'))) {
+      final path = Uri.decodeComponent(uri.path);
+      addCandidate(path);
+    }
+
+    return values.where((e) => e.isNotEmpty).toList(growable: false);
+  }
+
+  Uint8List? _decodePhotoBytes(dynamic payload) {
+    if (payload is! Map<String, dynamic>) {
+      return null;
+    }
+
+    final status = payload['status']?.toString();
+    if (status != '1') {
+      return null;
+    }
+
+    final message = payload['message'];
+    if (message is! Map<String, dynamic>) {
+      return null;
+    }
+
+    final encoded = message['file']?.toString().trim() ?? '';
+    if (encoded.isEmpty) {
+      return null;
+    }
+
+    final normalized = _normalizeBase64Payload(encoded);
+    return base64Decode(normalized);
   }
 
   String _normalizeBase64Payload(String value) {
@@ -802,6 +876,7 @@ class AuthRepository {
         const ['vparentProfileParentReligion', 'parent_religion', 'religion'],
         const ['religion', 'agama'],
       ),
+      'photoFilePath': rawPhotoUrl,
       'photoUrl': _normalizeProfilePhotoUrl(rawPhotoUrl),
     };
   }

@@ -4,22 +4,131 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 
+import '../../../../../features/auth/providers/auth_provider.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/constants/app_dimensions.dart';
 import '../../../../../routing/app_router.dart';
 import '../../../../../shared/data/dummy/dummy_users.dart';
 import '../../../../../shared/providers/shared_providers.dart';
+import '../../../../../shared/utils/current_user_session_storage.dart';
 import '../../../../../shared/widgets/avatar/user_profile_avatar.dart';
 import '../../../../../shared/widgets/cards/menu_card.dart';
 
 /// Parent dashboard screen.
-class ParentDashboardScreen extends ConsumerWidget {
+class ParentDashboardScreen extends ConsumerStatefulWidget {
   const ParentDashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ParentDashboardScreen> createState() =>
+      _ParentDashboardScreenState();
+}
+
+class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen> {
+  bool _isProfileSyncInProgress = false;
+  String? _lastSyncParentId;
+
+  @override
+  void initState() {
+    super.initState();
+    Future<void>.microtask(_syncParentProfile);
+  }
+
+  Future<void> _syncParentProfile() async {
+    if (_isProfileSyncInProgress) {
+      return;
+    }
+
+    final user = ref.read(currentUserProvider);
+    if (user == null || !user.isParent) {
+      return;
+    }
+
+    final parentId = user.id.trim();
+    if (parentId.isEmpty) {
+      return;
+    }
+
+    _lastSyncParentId = parentId;
+    _isProfileSyncInProgress = true;
+
+    try {
+      final authRepository = ref.read(authRepositoryProvider);
+      final token = user.userToken?.trim() ?? '';
+      if (token.isNotEmpty) {
+        authRepository.setAuthToken(token);
+      }
+
+      Map<String, String>? profile;
+      try {
+        profile = await authRepository.getParentProfile(parentId: parentId);
+      } catch (_) {
+        profile = null;
+      }
+
+      final rawPhotoUrl = profile?['photoUrl']?.trim() ?? '';
+      final rawPhotoFilePath = profile?['photoFilePath']?.trim() ?? '';
+      final updatedUser = user.copyWith(
+        fullName: profile?['name']?.trim().isNotEmpty == true
+            ? profile!['name']!.trim()
+            : user.fullName,
+        email: profile?['email']?.trim().isNotEmpty == true
+            ? profile!['email']!.trim()
+            : user.email,
+        phone: profile?['phone']?.trim().isNotEmpty == true
+            ? profile!['phone']!.trim()
+            : user.phone,
+        avatarUrl: rawPhotoUrl.isNotEmpty
+            ? _appendCacheBust(rawPhotoUrl)
+            : user.avatarUrl,
+      );
+
+      ref.read(currentUserProvider.notifier).state = updatedUser;
+      await saveCurrentUserSessionIfRemembered(updatedUser);
+
+      final bytes = await authRepository.getParentProfilePhotoBytes(
+        parentId: parentId,
+        cacheBust: DateTime.now().millisecondsSinceEpoch,
+        filePath: rawPhotoFilePath.isNotEmpty ? rawPhotoFilePath : rawPhotoUrl,
+      );
+
+      if (bytes != null) {
+        ref.read(currentUserPhotoBytesProvider.notifier).state = bytes;
+      } else if (rawPhotoUrl.isNotEmpty) {
+        ref.read(currentUserPhotoBytesProvider.notifier).state = null;
+      }
+    } catch (_) {
+      // Keep dashboard usable when profile sync fails.
+    } finally {
+      _isProfileSyncInProgress = false;
+    }
+  }
+
+  String _appendCacheBust(String url) {
+    final trimmed = url.trim();
+    if (trimmed.isEmpty) {
+      return trimmed;
+    }
+
+    final separator = trimmed.contains('?') ? '&' : '?';
+    return '$trimmed${separator}t=${DateTime.now().millisecondsSinceEpoch}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final user =
         ref.watch(currentUserProvider) ?? DummyUsers.getDefaultParent();
+
+    if (user.isParent) {
+      final parentId = user.id.trim();
+      final shouldSync =
+          parentId.isNotEmpty &&
+          !_isProfileSyncInProgress &&
+          _lastSyncParentId != parentId;
+      if (shouldSync) {
+        Future<void>.microtask(_syncParentProfile);
+      }
+    }
+
     final firstName = user.fullName.trim().isEmpty
         ? 'Login as Parent'
         : user.fullName.trim().split(RegExp(r'\s+')).first;

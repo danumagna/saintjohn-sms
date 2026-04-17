@@ -27,6 +27,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
   String _searchQuery = '';
   StudentSortField _sortField = StudentSortField.name;
   bool _isSortAscending = true;
+  StudentSourceFilter _sourceFilter = StudentSourceFilter.all;
 
   @override
   void dispose() {
@@ -49,6 +50,27 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
   void _toggleSortDirection() {
     setState(() {
       _isSortAscending = !_isSortAscending;
+    });
+  }
+
+  void _updateSourceFilter(StudentSourceFilter filter) {
+    setState(() {
+      _sourceFilter = filter;
+    });
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    _filterStudents('');
+  }
+
+  void _clearAllFilters() {
+    setState(() {
+      _searchController.clear();
+      _searchQuery = '';
+      _sourceFilter = StudentSourceFilter.all;
+      _sortField = StudentSortField.name;
+      _isSortAscending = true;
     });
   }
 
@@ -126,6 +148,44 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
     return _isSortAscending ? ' (A-Z)' : ' (Z-A)';
   }
 
+  bool get _hasActiveFilter {
+    return _searchQuery.isNotEmpty ||
+        _sourceFilter != StudentSourceFilter.all ||
+        _sortField != StudentSortField.name ||
+        !_isSortAscending;
+  }
+
+  bool _matchesSourceFilter(Student student) {
+    switch (_sourceFilter) {
+      case StudentSourceFilter.all:
+        return true;
+      case StudentSourceFilter.candidate:
+        return student.sourceType == 'candidate';
+      case StudentSourceFilter.student:
+        return student.sourceType != 'candidate';
+    }
+  }
+
+  String _sourceFilterLabel(StudentSourceFilter filter) {
+    return switch (filter) {
+      StudentSourceFilter.all => 'Semua',
+      StudentSourceFilter.candidate => 'Calon Peserta Didik',
+      StudentSourceFilter.student => 'Siswa Terdaftar',
+    };
+  }
+
+  int _countBySource(List<Student> students, StudentSourceFilter filter) {
+    if (filter == StudentSourceFilter.all) {
+      return students.length;
+    }
+    return students.where((student) {
+      if (filter == StudentSourceFilter.candidate) {
+        return student.sourceType == 'candidate';
+      }
+      return student.sourceType != 'candidate';
+    }).length;
+  }
+
   @override
   Widget build(BuildContext context) {
     final studentsAsync = ref.watch(studentsProvider);
@@ -186,6 +246,13 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
               controller: _searchController,
               hint: 'Search by name',
               prefixIcon: Iconsax.search_normal,
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      tooltip: 'Hapus pencarian',
+                      onPressed: _clearSearch,
+                      icon: const Icon(Iconsax.close_circle),
+                    )
+                  : null,
               textInputAction: TextInputAction.done,
               onChanged: _filterStudents,
             ),
@@ -196,48 +263,103 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
               right: AppDimensions.paddingM,
               bottom: AppDimensions.paddingS,
             ),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppDimensions.paddingS,
-                  vertical: AppDimensions.paddingXS,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(AppDimensions.radiusS),
-                  border: Border.all(
-                    color: AppColors.primary.withValues(alpha: 0.18),
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Iconsax.sort,
-                      size: 14,
-                      color: AppColors.primary,
+            child: SizedBox(
+              height: 38,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: StudentSourceFilter.values.length,
+                separatorBuilder: (_, _) =>
+                    const SizedBox(width: AppDimensions.paddingS),
+                itemBuilder: (context, index) {
+                  final filter = StudentSourceFilter.values[index];
+                  final selected = filter == _sourceFilter;
+                  return ChoiceChip(
+                    label: Text(_sourceFilterLabel(filter)),
+                    selected: selected,
+                    onSelected: (_) => _updateSourceFilter(filter),
+                    showCheckmark: false,
+                    selectedColor: AppColors.primary.withValues(alpha: 0.14),
+                    backgroundColor: AppColors.surface,
+                    side: BorderSide(
+                      color: selected
+                          ? AppColors.primary.withValues(alpha: 0.4)
+                          : AppColors.borderLight,
                     ),
-                    const SizedBox(width: AppDimensions.paddingXS),
-                    Text(
-                      'Sort: ${_sortFieldLabel(_sortField)}$_sortDirectionSuffix',
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primary,
-                      ),
+                    labelStyle: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: selected
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
                     ),
-                  ],
-                ),
+                  );
+                },
               ),
             ),
-          ).animate().fadeIn(duration: const Duration(milliseconds: 450)),
+          ).animate().fadeIn(duration: const Duration(milliseconds: 500)),
+          Padding(
+            padding: const EdgeInsets.only(
+              left: AppDimensions.paddingM,
+              right: AppDimensions.paddingM,
+              bottom: AppDimensions.paddingS,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppDimensions.paddingS,
+                        vertical: AppDimensions.paddingXS,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(
+                          AppDimensions.radiusS,
+                        ),
+                        border: Border.all(
+                          color: AppColors.primary.withValues(alpha: 0.18),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Iconsax.sort,
+                            size: 14,
+                            color: AppColors.primary,
+                          ),
+                          const SizedBox(width: AppDimensions.paddingXS),
+                          Text(
+                            'Sort: ${_sortFieldLabel(_sortField)}$_sortDirectionSuffix',
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                if (_hasActiveFilter)
+                  TextButton.icon(
+                    onPressed: _clearAllFilters,
+                    icon: const Icon(Iconsax.refresh, size: 16),
+                    label: const Text('Clear Filter'),
+                  ),
+              ],
+            ),
+          ).animate().fadeIn(duration: const Duration(milliseconds: 560)),
           // Student List
           Expanded(
             child: studentsAsync.when(
               data: (students) {
-                final filteredStudents = _searchQuery.isEmpty
+                final searchFilteredStudents = _searchQuery.isEmpty
                     ? students
                     : students
                           .where(
@@ -246,10 +368,16 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                             ),
                           )
                           .toList();
+                final filteredStudents = searchFilteredStudents
+                    .where(_matchesSourceFilter)
+                    .toList();
                 final sortedStudents = _sortStudents(filteredStudents);
 
                 if (sortedStudents.isEmpty) {
-                  return _buildEmptyState();
+                  return _buildEmptyState(
+                    hasSearch: _searchQuery.isNotEmpty,
+                    hasSourceFilter: _sourceFilter != StudentSourceFilter.all,
+                  );
                 }
 
                 return RefreshIndicator(
@@ -262,10 +390,36 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppDimensions.paddingM,
                     ),
-                    itemCount: sortedStudents.length,
+                    itemCount: sortedStudents.length + 1,
                     itemBuilder: (context, index) {
-                      final student = sortedStudents[index];
-                      return _buildStudentCard(student);
+                      if (index == 0) {
+                        return _buildSummarySection(
+                          allCount: _countBySource(
+                            students,
+                            StudentSourceFilter.all,
+                          ),
+                          candidateCount: _countBySource(
+                            students,
+                            StudentSourceFilter.candidate,
+                          ),
+                          studentCount: _countBySource(
+                            students,
+                            StudentSourceFilter.student,
+                          ),
+                          visibleCount: sortedStudents.length,
+                        ).animate().fadeIn(
+                          duration: const Duration(milliseconds: 320),
+                        );
+                      }
+
+                      final itemIndex = index - 1;
+                      final student = sortedStudents[itemIndex];
+                      return _buildStudentCard(student)
+                          .animate(
+                            delay: Duration(milliseconds: itemIndex * 45),
+                          )
+                          .fadeIn(duration: const Duration(milliseconds: 260))
+                          .slideY(begin: 0.04, end: 0);
                     },
                   ),
                 );
@@ -339,7 +493,14 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState({
+    required bool hasSearch,
+    required bool hasSourceFilter,
+  }) {
+    final message = hasSearch || hasSourceFilter
+        ? 'Tidak ada data yang sesuai dengan pencarian atau filter.'
+        : 'Belum ada data siswa yang tersedia.';
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -358,14 +519,113 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
           ),
           const SizedBox(height: AppDimensions.paddingL),
           Text(
-            'No students found',
+            message,
+            textAlign: TextAlign.center,
             style: const TextStyle(
               fontFamily: 'Inter',
               fontSize: 16,
               color: AppColors.textSecondary,
             ),
           ),
+          if (hasSearch || hasSourceFilter) ...[
+            const SizedBox(height: AppDimensions.paddingM),
+            OutlinedButton.icon(
+              onPressed: () {
+                _clearAllFilters();
+              },
+              icon: const Icon(Iconsax.refresh),
+              label: const Text('Reset Filter'),
+            ),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildSummarySection({
+    required int allCount,
+    required int candidateCount,
+    required int studentCount,
+    required int visibleCount,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppDimensions.paddingM),
+      padding: const EdgeInsets.all(AppDimensions.paddingM),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppDimensions.radiusM),
+        border: Border.all(color: AppColors.borderLight),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Ringkasan Data Siswa',
+            style: const TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: AppDimensions.paddingS),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildSummaryChip(
+                  label: 'Total',
+                  value: allCount,
+                  color: AppColors.primary,
+                ),
+                const SizedBox(width: AppDimensions.paddingS),
+                _buildSummaryChip(
+                  label: 'Calon',
+                  value: candidateCount,
+                  color: AppColors.info,
+                ),
+                const SizedBox(width: AppDimensions.paddingS),
+                _buildSummaryChip(
+                  label: 'Siswa',
+                  value: studentCount,
+                  color: AppColors.success,
+                ),
+                const SizedBox(width: AppDimensions.paddingS),
+                _buildSummaryChip(
+                  label: 'Ditampilkan',
+                  value: visibleCount,
+                  color: AppColors.warning,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryChip({
+    required String label,
+    required int value,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimensions.paddingXS,
+        vertical: 3,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppDimensions.radiusS),
+      ),
+      child: Text(
+        '$label: $value',
+        style: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
       ),
     );
   }
@@ -904,6 +1164,8 @@ enum StudentSortField {
   className,
   status,
 }
+
+enum StudentSourceFilter { all, candidate, student }
 
 class _StatusTheme {
   final Color background;

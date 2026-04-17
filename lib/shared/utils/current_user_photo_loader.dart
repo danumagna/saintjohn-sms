@@ -21,6 +21,7 @@ Future<Uint8List?> preloadCurrentUserPhoto({
     final bytes = await authRepository.getParentProfilePhotoBytes(
       parentId: id,
       cacheBust: cacheBust,
+      filePath: user.avatarUrl,
     );
     if (bytes != null) {
       _setCurrentUserPhotoBytesSafely(ref: ref, bytes: bytes);

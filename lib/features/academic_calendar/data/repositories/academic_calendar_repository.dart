@@ -17,40 +17,67 @@ class AcademicCalendarRepository {
     required String authToken,
   }) async {
     try {
-      if (authToken.trim().isNotEmpty) {
-        _apiClient.setAuthToken(authToken);
+      final trimmedToken = authToken.trim();
+      if (trimmedToken.isEmpty) {
+        throw const AcademicCalendarException(
+          'Session expired. Please login again.',
+        );
       }
+      _apiClient.setAuthToken(trimmedToken);
 
-      final response = await _apiClient.post(
-        ApiEndpoints.parentCalendar,
-        data: <String, dynamic>{
-          'id': id,
-          'login_type': loginType,
-          'nid_student': nidStudent,
-        },
+      final candidates = _buildRequestCandidates(
+        id: id,
+        loginType: loginType,
+        nidStudent: nidStudent,
       );
 
-      final payload = response.data;
-      if (payload is! Map<String, dynamic>) {
-        throw const AcademicCalendarException('Invalid server response');
+      AcademicCalendarException? lastAuthDenied;
+
+      for (final candidate in candidates) {
+        final response = await _apiClient.post(
+          ApiEndpoints.parentCalendar,
+          data: candidate,
+        );
+
+        final payload = response.data;
+        if (payload is! Map<String, dynamic>) {
+          throw const AcademicCalendarException('Invalid server response');
+        }
+
+        final status = payload['status']?.toString() ?? '0';
+        if (status == '1') {
+          final data = payload['data'];
+          if (data is! List) {
+            return <AcademicCalendarEntry>[];
+          }
+
+          return data
+              .whereType<Map>()
+              .map(
+                (e) => AcademicCalendarEntry.fromJson(
+                  Map<String, dynamic>.from(e),
+                ),
+              )
+              .toList();
+        }
+
+        final message = _extractErrorMessage(payload);
+        if (_isAuthenticationDenied(message)) {
+          lastAuthDenied = AcademicCalendarException(message);
+          continue;
+        }
+
+        throw AcademicCalendarException(message);
       }
 
-      final status = payload['status']?.toString() ?? '0';
-      if (status != '1') {
-        throw AcademicCalendarException(_extractErrorMessage(payload));
+      if (lastAuthDenied != null) {
+        throw const AcademicCalendarException(
+          'Authentication denied for calendar request. '
+          'Please relogin and try again.',
+        );
       }
 
-      final data = payload['data'];
-      if (data is! List) {
-        return <AcademicCalendarEntry>[];
-      }
-
-      return data
-          .whereType<Map>()
-          .map(
-            (e) => AcademicCalendarEntry.fromJson(Map<String, dynamic>.from(e)),
-          )
-          .toList();
+      throw const AcademicCalendarException('Failed to load academic calendar');
     } on DioException catch (e) {
       if (e.type == DioExceptionType.connectionTimeout ||
           e.type == DioExceptionType.receiveTimeout) {
@@ -80,6 +107,83 @@ class AcademicCalendarRepository {
 
       throw AcademicCalendarException('An unexpected error occurred: $e');
     }
+  }
+
+  List<Map<String, dynamic>> _buildRequestCandidates({
+    required String id,
+    required String loginType,
+    required String nidStudent,
+  }) {
+    final trimmedId = id.trim();
+    final trimmedLoginType = _normalizeLoginType(loginType);
+    final trimmedStudentId = nidStudent.trim();
+
+    final idCandidates = <String>{
+      if (trimmedId.isNotEmpty) trimmedId,
+      if (trimmedStudentId.isNotEmpty) trimmedStudentId,
+    };
+
+    final studentCandidates = <String>{
+      if (trimmedStudentId.isNotEmpty) trimmedStudentId,
+      if (trimmedId.isNotEmpty) trimmedId,
+    };
+
+    final loginTypeCandidates = <String>{
+      if (trimmedLoginType.isNotEmpty) trimmedLoginType,
+      'student',
+      'parent',
+    };
+
+    final candidates = <Map<String, dynamic>>[];
+    for (final requestLoginType in loginTypeCandidates) {
+      for (final requestId in idCandidates) {
+        for (final requestStudentId in studentCandidates) {
+          candidates.add(<String, dynamic>{
+            'id': requestId,
+            'login_type': requestLoginType,
+            'nid_student': requestStudentId,
+          });
+        }
+      }
+    }
+
+    if (candidates.isEmpty) {
+      return <Map<String, dynamic>>[
+        <String, dynamic>{
+          'id': trimmedId,
+          'login_type': trimmedLoginType,
+          'nid_student': trimmedStudentId,
+        },
+      ];
+    }
+
+    return candidates;
+  }
+
+  String _normalizeLoginType(String rawLoginType) {
+    final value = rawLoginType.trim().toLowerCase();
+    if (value.contains('parent') ||
+        value.contains('orang tua') ||
+        value.contains('orangtua') ||
+        value.contains('ortu') ||
+        value.contains('wali')) {
+      return 'parent';
+    }
+    if (value.contains('student') ||
+        value.contains('siswa') ||
+        value.contains('murid') ||
+        value.contains('pelajar')) {
+      return 'student';
+    }
+    return value;
+  }
+
+  bool _isAuthenticationDenied(String message) {
+    final text = message.trim().toLowerCase();
+    return text.contains('authentication denied') ||
+        text.contains('auth denied') ||
+        text.contains('unauthorized') ||
+        text.contains('forbidden');
   }
 
   String _extractErrorMessage(Map<String, dynamic> payload) {

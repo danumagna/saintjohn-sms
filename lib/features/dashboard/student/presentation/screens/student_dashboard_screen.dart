@@ -276,6 +276,65 @@ class _StudentDashboardScreenState
     return studentId.toString();
   }
 
+  String _buildClassAndSchoolLabel(User user) {
+    final className = user.className?.trim() ?? '';
+    final schoolName = user.schoolName?.trim() ?? '';
+
+    if (className.isNotEmpty && schoolName.isNotEmpty) {
+      return '$className • $schoolName';
+    }
+    if (className.isNotEmpty) {
+      return className;
+    }
+    if (schoolName.isNotEmpty) {
+      return schoolName;
+    }
+
+    return 'Login as Student';
+  }
+
+  Widget _buildClassAndSchoolInfo(User user) {
+    final className = user.className?.trim() ?? '';
+    final schoolName = user.schoolName?.trim() ?? '';
+
+    const textStyle = TextStyle(
+      fontFamily: 'Inter',
+      fontSize: 12,
+      color: AppColors.textSecondary,
+    );
+
+    if (className.isNotEmpty && schoolName.isNotEmpty) {
+      return Row(
+        children: [
+          Flexible(
+            child: Text(
+              className,
+              style: textStyle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const Text(' • ', style: textStyle),
+          Flexible(
+            child: Text(
+              schoolName,
+              style: textStyle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Text(
+      _buildClassAndSchoolLabel(user),
+      style: textStyle,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
   bool _isSameDate(DateTime date, DateTime other) {
     final localDate = date.toLocal();
     final localOther = other.toLocal();
@@ -695,19 +754,8 @@ class _StudentDashboardScreenState
                                         ),
                                       )
                                       .slideX(begin: 0.1, end: 0),
-                                  Text(
-                                    (user.schoolName?.trim().isNotEmpty ??
-                                            false)
-                                        ? '${user.className ?? 'Login as Student'} • ${user.schoolName!.trim()}'
-                                        : (user.className ??
-                                              'Login as Student'),
-                                    style: const TextStyle(
-                                      fontFamily: 'Inter',
-                                      fontSize: 12,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                  _buildClassAndSchoolInfo(
+                                    user,
                                   ).animate().fadeIn(
                                     delay: const Duration(milliseconds: 200),
                                     duration: const Duration(milliseconds: 400),

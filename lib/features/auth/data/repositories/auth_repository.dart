@@ -512,12 +512,36 @@ class AuthRepository {
           'vstudentDashboardProfileEmail',
           'email',
         ]),
-        'className': _readString(source, const [
-          'class_name',
-          'vstudentDashboardProfileClassName',
-          'className',
-        ]),
-        'schoolName': _readString(source, const ['school_name', 'schoolName']),
+        'className': _readStringLoose(
+          source,
+          const [
+            'class_name',
+            'vstudentDashboardProfileClassName',
+            'className',
+            'school_class_name',
+            'grade_name',
+          ],
+          const ['classname', 'class', 'schoolclass', 'grade', 'tingkat'],
+        ),
+        'schoolName': _readStringLoose(
+          source,
+          const [
+            'school_name',
+            'schoolName',
+            'vstudentDashboardProfileSchoolName',
+            'vSchoolName',
+            'v_school_name',
+            'unit_school_name',
+            'school_unit_name',
+          ],
+          const [
+            'schoolname',
+            'school',
+            'namasekolah',
+            'unitsekolah',
+            'schoolunit',
+          ],
+        ),
         'birthDate': _readString(source, const [
           'birthdate',
           'date_of_birth',

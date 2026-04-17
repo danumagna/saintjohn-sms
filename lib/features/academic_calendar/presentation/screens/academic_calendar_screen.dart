@@ -101,7 +101,6 @@ class _AcademicCalendarScreenState
       loginType: loginType,
       directStudentId: user.studentId,
       childrenStudentIds: user.childrenStudentId,
-      rawId: user.id,
     );
     final id = _resolveRequestId(
       rawId: user.id,
@@ -122,13 +121,20 @@ class _AcademicCalendarScreenState
 
   String _normalizeLoginType(String rawRole) {
     final role = rawRole.trim().toLowerCase();
-    if (role.contains('parent')) {
+    if (role.contains('parent') ||
+        role.contains('orang tua') ||
+        role.contains('orangtua') ||
+        role.contains('ortu') ||
+        role.contains('wali')) {
       return 'parent';
     }
-    if (role.contains('student')) {
+    if (role.contains('student') ||
+        role.contains('siswa') ||
+        role.contains('murid') ||
+        role.contains('pelajar')) {
       return 'student';
     }
-    return role;
+    return '';
   }
 
   String _resolveRequestId({
@@ -140,19 +146,22 @@ class _AcademicCalendarScreenState
       return nidStudent;
     }
 
+    if (loginType != 'parent') {
+      return '';
+    }
+
     final parsed = int.tryParse(rawId.trim());
     if ((parsed ?? 0) > 0) {
       return parsed.toString();
     }
 
-    return nidStudent;
+    return '';
   }
 
   String _resolveStudentId({
     required String loginType,
     int? directStudentId,
     List<int>? childrenStudentIds,
-    required String rawId,
   }) {
     if ((directStudentId ?? 0) > 0) {
       return directStudentId.toString();
@@ -170,11 +179,6 @@ class _AcademicCalendarScreenState
     // store a non-student identifier in id and backend returns auth denied.
     if (loginType == 'student') {
       return '';
-    }
-
-    final parsed = int.tryParse(rawId.trim());
-    if ((parsed ?? 0) > 0) {
-      return parsed.toString();
     }
 
     return '';

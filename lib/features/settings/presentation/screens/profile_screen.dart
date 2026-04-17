@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:shimmer/shimmer.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
@@ -47,6 +48,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   int _avatarCacheSeed = DateTime.now().millisecondsSinceEpoch;
 
   bool _isLoading = false;
+  bool _isParentProfileLoading = false;
   bool _isStudentProfileLoading = false;
   Map<String, String> _studentProfile = <String, String>{};
 
@@ -160,6 +162,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       return;
     }
 
+    if (mounted) {
+      setState(() {
+        _isParentProfileLoading = true;
+      });
+    }
+
     try {
       final authRepository = ref.read(authRepositoryProvider);
       final candidateIds = <String>{
@@ -212,7 +220,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (dobText.isNotEmpty) {
         _selectedBirthDate = DateTime.tryParse(dobText);
       }
-    } finally {}
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isParentProfileLoading = false;
+        });
+      }
+    }
   }
 
   List<int> _resolveStudentRegistrationIds(User user) {
@@ -458,11 +472,71 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
+  Widget _buildSkeletonBox({
+    required double height,
+    double width = double.infinity,
+    double radius = AppDimensions.radiusS,
+  }) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(radius),
+      ),
+    );
+  }
+
+  Widget _buildProfileLoadingSkeleton({required bool isStudent}) {
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(AppDimensions.paddingL),
+        child: Shimmer.fromColors(
+          baseColor: AppColors.borderLight,
+          highlightColor: AppColors.surface,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: _buildSkeletonBox(
+                  width: 100,
+                  height: 100,
+                  radius: AppDimensions.radiusCircular,
+                ),
+              ),
+              const SizedBox(height: AppDimensions.paddingXL),
+              ...List<Widget>.generate(
+                isStudent ? 6 : 8,
+                (index) => Padding(
+                  padding: const EdgeInsets.only(
+                    bottom: AppDimensions.paddingM,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSkeletonBox(height: 12, width: 120),
+                      const SizedBox(height: AppDimensions.paddingXS),
+                      _buildSkeletonBox(height: 44),
+                    ],
+                  ),
+                ),
+              ),
+              if (!isStudent) ...[
+                const SizedBox(height: AppDimensions.paddingM),
+                _buildSkeletonBox(height: 48),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildStudentProfileBody(User user) {
     final profile = _studentProfile;
 
     if (_isStudentProfileLoading && profile.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return _buildProfileLoadingSkeleton(isStudent: true);
     }
 
     return SafeArea(
@@ -619,6 +693,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ),
       body: user.isStudent
           ? _buildStudentProfileBody(user)
+          : _isParentProfileLoading
+          ? _buildProfileLoadingSkeleton(isStudent: false)
           : SafeArea(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(AppDimensions.paddingL),

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -28,8 +30,10 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late TabController _tabController;
+  late final AnimationController _waterAnimationController;
+  bool _reduceMotion = false;
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -46,6 +50,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _waterAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 6500),
+    )..repeat();
     _applyDevAutofillForIndex(_tabController.index);
     _hydrateRememberMe();
 
@@ -70,6 +78,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     setState(() => _rememberMe = saved);
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final mediaQuery = MediaQuery.maybeOf(context);
+    final shouldReduceMotion =
+        (mediaQuery?.disableAnimations ?? false) ||
+        (mediaQuery?.accessibleNavigation ?? false);
+
+    if (_reduceMotion == shouldReduceMotion) {
+      return;
+    }
+
+    _reduceMotion = shouldReduceMotion;
+    if (_reduceMotion) {
+      _waterAnimationController.stop(canceled: false);
+    } else {
+      _waterAnimationController.repeat();
+    }
+  }
+
   void _applyDevAutofillForIndex(int index) {
     final isParent = index == 1;
     _emailController.text = isParent ? _parentEmail : _studentEmail;
@@ -79,6 +107,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   @override
   void dispose() {
     _tabController.dispose();
+    _waterAnimationController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -114,6 +143,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
       if (mounted) {
         setState(() => _isLoading = false);
+
+        // Stop the background animation immediately before route switch.
+        _waterAnimationController.stop(canceled: false);
 
         if (isParent) {
           context.go(AppRoutes.parentDashboard);
@@ -152,261 +184,392 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppDimensions.paddingL),
-          child: Column(
-            children: [
-              const SizedBox(height: AppDimensions.paddingXL),
-              // Logo
-              Image.asset(
-                    AppAssets.logo,
-                    width: AppDimensions.logoL,
-                    height: AppDimensions.logoL,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        width: AppDimensions.logoL,
-                        height: AppDimensions.logoL,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.school,
-                          size: 60,
-                          color: AppColors.primary,
-                        ),
-                      );
-                    },
-                  )
-                  .animate()
-                  .fadeIn(duration: const Duration(milliseconds: 500))
-                  .scale(
-                    begin: const Offset(0.8, 0.8),
-                    end: const Offset(1.0, 1.0),
-                    duration: const Duration(milliseconds: 500),
-                    curve: Curves.easeOutBack,
-                  ),
-              const SizedBox(height: AppDimensions.paddingL),
-              // Title
-              Text(
-                    'Login',
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
-                  )
-                  .animate()
-                  .fadeIn(
-                    delay: const Duration(milliseconds: 200),
-                    duration: const Duration(milliseconds: 400),
-                  )
-                  .slideY(begin: 0.2, end: 0),
-              const SizedBox(height: AppDimensions.paddingXL),
-              // Tab Bar
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(AppDimensions.radiusM),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: TabBar(
-                  controller: _tabController,
-                  onTap: _applyDevAutofillForIndex,
-                  indicator: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(AppDimensions.radiusS),
-                  ),
-                  indicatorSize: TabBarIndicatorSize.tab,
-                  dividerColor: Colors.transparent,
-                  labelColor: AppColors.textOnPrimary,
-                  unselectedLabelColor: AppColors.textSecondary,
-                  labelStyle: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  unselectedLabelStyle: const TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  padding: const EdgeInsets.all(4),
-                  tabs: [
-                    Tab(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text('Login as Student'),
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: IgnorePointer(
+              child: AnimatedBuilder(
+                animation: _waterAnimationController,
+                builder: (context, _) {
+                  return RepaintBoundary(
+                    child: CustomPaint(
+                      painter: _WaterBackgroundPainter(
+                        progress: _reduceMotion
+                            ? 0
+                            : _waterAnimationController.value,
                       ),
                     ),
-                    Tab(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text('Login as Parent'),
-                      ),
-                    ),
-                  ],
-                ),
-              ).animate().fadeIn(
-                delay: const Duration(milliseconds: 300),
-                duration: const Duration(milliseconds: 400),
+                  );
+                },
               ),
-              const SizedBox(height: AppDimensions.paddingXL),
-              // Login Form
-              Form(
-                key: _formKey,
-                child: Column(
-                  children: [
-                    AppTextField(
-                          controller: _emailController,
-                          label: 'Email',
-                          hint: 'Enter your email',
-                          keyboardType: TextInputType.emailAddress,
-                          prefixIcon: Iconsax.sms,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'This field is required';
-                            }
-                            if (!value.contains('@')) {
-                              return 'Please enter a valid email';
-                            }
-                            return null;
-                          },
-                        )
-                        .animate()
-                        .fadeIn(
-                          delay: const Duration(milliseconds: 400),
-                          duration: const Duration(milliseconds: 400),
-                        )
-                        .slideX(begin: -0.1, end: 0),
-                    const SizedBox(height: AppDimensions.paddingM),
-                    AppTextField(
-                          controller: _passwordController,
-                          label: 'Password',
-                          hint: 'Enter your password',
-                          obscureText: true,
-                          prefixIcon: Iconsax.lock,
-                          textInputAction: TextInputAction.done,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'This field is required';
-                            }
-                            if (value.length < 6) {
-                              return 'Password must be at least 8 characters';
-                            }
-                            return null;
-                          },
-                        )
-                        .animate()
-                        .fadeIn(
-                          delay: const Duration(milliseconds: 500),
-                          duration: const Duration(milliseconds: 400),
-                        )
-                        .slideX(begin: -0.1, end: 0),
-                    const SizedBox(height: AppDimensions.paddingM),
-                    // Remember Me & Forgot Password
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            ),
+          ),
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppDimensions.paddingL),
+              child: Column(
+                children: [
+                  const SizedBox(height: AppDimensions.paddingXL),
+                  // Logo
+                  Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.16),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primary.withValues(alpha: 0.12),
+                              blurRadius: 16,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: ClipOval(
+                          child: Image.asset(
+                            AppAssets.logo,
+                            width: AppDimensions.logoL,
+                            height: AppDimensions.logoL,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                width: AppDimensions.logoL,
+                                height: AppDimensions.logoL,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(
+                                    alpha: 0.1,
+                                  ),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.school,
+                                  size: 60,
+                                  color: AppColors.primary,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      )
+                      .animate()
+                      .fadeIn(duration: const Duration(milliseconds: 500))
+                      .scale(
+                        begin: const Offset(0.8, 0.8),
+                        end: const Offset(1.0, 1.0),
+                        duration: const Duration(milliseconds: 500),
+                        curve: Curves.easeOutBack,
+                      ),
+                  const SizedBox(height: AppDimensions.paddingL),
+                  // Title
+                  Text(
+                        'Login',
+                        style: const TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      )
+                      .animate()
+                      .fadeIn(
+                        delay: const Duration(milliseconds: 200),
+                        duration: const Duration(milliseconds: 400),
+                      )
+                      .slideY(begin: 0.2, end: 0),
+                  const SizedBox(height: AppDimensions.paddingXL),
+                  // Tab Bar
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(
+                        AppDimensions.radiusM,
+                      ),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: TabBar(
+                      controller: _tabController,
+                      onTap: _applyDevAutofillForIndex,
+                      indicator: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(
+                          AppDimensions.radiusS,
+                        ),
+                      ),
+                      indicatorSize: TabBarIndicatorSize.tab,
+                      dividerColor: Colors.transparent,
+                      labelColor: AppColors.textOnPrimary,
+                      unselectedLabelColor: AppColors.textSecondary,
+                      labelStyle: const TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      unselectedLabelStyle: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      padding: const EdgeInsets.all(4),
+                      tabs: [
+                        Tab(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text('Login as Student'),
+                          ),
+                        ),
+                        Tab(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text('Login as Parent'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ).animate().fadeIn(
+                    delay: const Duration(milliseconds: 300),
+                    duration: const Duration(milliseconds: 400),
+                  ),
+                  const SizedBox(height: AppDimensions.paddingXL),
+                  // Login Form
+                  Form(
+                    key: _formKey,
+                    child: Column(
                       children: [
+                        AppTextField(
+                              controller: _emailController,
+                              label: 'Email',
+                              hint: 'Enter your email',
+                              keyboardType: TextInputType.emailAddress,
+                              prefixIcon: Iconsax.sms,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'This field is required';
+                                }
+                                if (!value.contains('@')) {
+                                  return 'Please enter a valid email';
+                                }
+                                return null;
+                              },
+                            )
+                            .animate()
+                            .fadeIn(
+                              delay: const Duration(milliseconds: 400),
+                              duration: const Duration(milliseconds: 400),
+                            )
+                            .slideX(begin: -0.1, end: 0),
+                        const SizedBox(height: AppDimensions.paddingM),
+                        AppTextField(
+                              controller: _passwordController,
+                              label: 'Password',
+                              hint: 'Enter your password',
+                              obscureText: true,
+                              prefixIcon: Iconsax.lock,
+                              textInputAction: TextInputAction.done,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'This field is required';
+                                }
+                                if (value.length < 6) {
+                                  return 'Password must be at least 8 characters';
+                                }
+                                return null;
+                              },
+                            )
+                            .animate()
+                            .fadeIn(
+                              delay: const Duration(milliseconds: 500),
+                              duration: const Duration(milliseconds: 400),
+                            )
+                            .slideX(begin: -0.1, end: 0),
+                        const SizedBox(height: AppDimensions.paddingM),
+                        // Remember Me & Forgot Password
                         Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: Checkbox(
-                                value: _rememberMe,
-                                onChanged: (value) {
-                                  setState(() => _rememberMe = value ?? false);
-                                },
+                            Row(
+                              children: [
+                                SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: Checkbox(
+                                    value: _rememberMe,
+                                    onChanged: (value) {
+                                      setState(
+                                        () => _rememberMe = value ?? false,
+                                      );
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: AppDimensions.paddingS),
+                                Text(
+                                  'Remember me',
+                                  style: const TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 14,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                final loginType = _tabController.index == 1
+                                    ? 'parent'
+                                    : 'student';
+                                context.push(
+                                  '${AppRoutes.forgotPassword}?loginType=$loginType',
+                                );
+                              },
+                              child: Text(
+                                'Forgot Password?',
+                                style: const TextStyle(
+                                  fontFamily: 'Poppins',
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primary,
+                                ),
                               ),
                             ),
-                            const SizedBox(width: AppDimensions.paddingS),
+                          ],
+                        ).animate().fadeIn(
+                          delay: const Duration(milliseconds: 600),
+                          duration: const Duration(milliseconds: 400),
+                        ),
+                        const SizedBox(height: AppDimensions.paddingXL),
+                        // Login Button
+                        PrimaryButton(
+                              text: 'Login',
+                              isLoading: _isLoading,
+                              onPressed: _handleLogin,
+                            )
+                            .animate()
+                            .fadeIn(
+                              delay: const Duration(milliseconds: 700),
+                              duration: const Duration(milliseconds: 400),
+                            )
+                            .slideY(begin: 0.2, end: 0),
+                        const SizedBox(height: AppDimensions.paddingL),
+                        // Sign Up Link
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
                             Text(
-                              'Remember me',
+                              'Don\'t have an account?',
                               style: const TextStyle(
                                 fontFamily: 'Inter',
                                 fontSize: 14,
                                 color: AppColors.textSecondary,
                               ),
                             ),
+                            TextButton(
+                              onPressed: () => context.push(AppRoutes.signup),
+                              child: Text(
+                                'Sign Up',
+                                style: const TextStyle(
+                                  fontFamily: 'Poppins',
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
                           ],
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            final loginType = _tabController.index == 1
-                                ? 'parent'
-                                : 'student';
-                            context.push(
-                              '${AppRoutes.forgotPassword}?loginType=$loginType',
-                            );
-                          },
-                          child: Text(
-                            'Forgot Password?',
-                            style: const TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ).animate().fadeIn(
-                      delay: const Duration(milliseconds: 600),
-                      duration: const Duration(milliseconds: 400),
-                    ),
-                    const SizedBox(height: AppDimensions.paddingXL),
-                    // Login Button
-                    PrimaryButton(
-                          text: 'Login',
-                          isLoading: _isLoading,
-                          onPressed: _handleLogin,
-                        )
-                        .animate()
-                        .fadeIn(
-                          delay: const Duration(milliseconds: 700),
+                        ).animate().fadeIn(
+                          delay: const Duration(milliseconds: 800),
                           duration: const Duration(milliseconds: 400),
-                        )
-                        .slideY(begin: 0.2, end: 0),
-                    const SizedBox(height: AppDimensions.paddingL),
-                    // Sign Up Link
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Don\'t have an account?',
-                          style: const TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 14,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () => context.push(AppRoutes.signup),
-                          child: Text(
-                            'Sign Up',
-                            style: const TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.primary,
-                            ),
-                          ),
                         ),
                       ],
-                    ).animate().fadeIn(
-                      delay: const Duration(milliseconds: 800),
-                      duration: const Duration(milliseconds: 400),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
+  }
+}
+
+class _WaterBackgroundPainter extends CustomPainter {
+  final double progress;
+
+  const _WaterBackgroundPainter({required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final basePaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          AppColors.background,
+          AppColors.primary.withValues(alpha: 0.03),
+        ],
+      ).createShader(Offset.zero & size);
+    canvas.drawRect(Offset.zero & size, basePaint);
+
+    final waveOnePath = _buildWavePath(
+      size: size,
+      baseHeightFactor: 0.68,
+      amplitude: 20,
+      frequency: 1.5,
+      phaseShift: progress * 2 * math.pi,
+    );
+
+    final waveTwoPath = _buildWavePath(
+      size: size,
+      baseHeightFactor: 0.74,
+      amplitude: 26,
+      frequency: 1.2,
+      phaseShift: (progress * 2 * math.pi) + (math.pi / 2),
+    );
+
+    final waveOnePaint = Paint()
+      ..color = AppColors.primary.withValues(alpha: 0.08)
+      ..style = PaintingStyle.fill;
+
+    final waveTwoPaint = Paint()
+      ..color = AppColors.secondary.withValues(alpha: 0.09)
+      ..style = PaintingStyle.fill;
+
+    canvas.drawPath(waveOnePath, waveOnePaint);
+    canvas.drawPath(waveTwoPath, waveTwoPaint);
+  }
+
+  Path _buildWavePath({
+    required Size size,
+    required double baseHeightFactor,
+    required double amplitude,
+    required double frequency,
+    required double phaseShift,
+  }) {
+    if (size.width <= 0 || size.height <= 0) {
+      return Path();
+    }
+
+    final path = Path()..moveTo(0, size.height);
+    path.lineTo(0, size.height * baseHeightFactor);
+    final samplingStep = (size.width / 60).clamp(6.0, 14.0);
+
+    for (double x = 0; x <= size.width; x += samplingStep) {
+      final normalizedX = x / size.width;
+      final y =
+          (size.height * baseHeightFactor) +
+          (math.sin((normalizedX * frequency * 2 * math.pi) + phaseShift) *
+              amplitude);
+      path.lineTo(x, y);
+    }
+
+    path.lineTo(size.width, size.height);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldRepaint(covariant _WaterBackgroundPainter oldDelegate) {
+    return oldDelegate.progress != progress;
   }
 }

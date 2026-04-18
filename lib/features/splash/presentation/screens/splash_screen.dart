@@ -151,25 +151,38 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             children: [
               const Spacer(flex: 2),
               // Logo
-              Image.asset(
-                    AppAssets.logo,
-                    width: AppDimensions.logoXL,
-                    height: AppDimensions.logoXL,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
+              Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface.withValues(alpha: 0.14),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: AppColors.textOnPrimary.withValues(alpha: 0.28),
+                      ),
+                    ),
+                    child: ClipOval(
+                      child: Image.asset(
+                        AppAssets.logo,
                         width: AppDimensions.logoXL,
                         height: AppDimensions.logoXL,
-                        decoration: BoxDecoration(
-                          color: AppColors.surface.withValues(alpha: 0.2),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.school,
-                          size: 80,
-                          color: AppColors.textOnPrimary,
-                        ),
-                      );
-                    },
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            width: AppDimensions.logoXL,
+                            height: AppDimensions.logoXL,
+                            decoration: BoxDecoration(
+                              color: AppColors.surface.withValues(alpha: 0.2),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.school,
+                              size: 80,
+                              color: AppColors.textOnPrimary,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
                   )
                   .animate()
                   .fadeIn(duration: AppDurations.slow, curve: Curves.easeOut)
